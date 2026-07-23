@@ -1,0 +1,112 @@
+import { useEffect, useMemo, useState } from 'react';
+import { Header } from './Combos.jsx';
+import '../styles/Home.css';
+import '../styles/Library.css';
+import { deleteCombo, duplicateCombo, getCombos } from '../lib/api.js';
+
+const fighterColor = (fighter) => {
+  if (['Ken', 'Marisa', 'Dhalsim'].includes(fighter)) return 'orange';
+  if (['Juri', 'A.K.I.', 'M. Bison'].includes(fighter)) return 'purple';
+  if (['Luke', 'Chun-Li', 'Guile'].includes(fighter)) return 'blue';
+  return 'red';
+};
+
+const relativeDate = (date) => {
+  const days = Math.floor((Date.now() - new Date(date).getTime()) / 86400000);
+  if (days < 1) return 'Today';
+  if (days === 1) return 'Yesterday';
+  return `${days} days ago`;
+};
+
+function MyCombos({ navigate, user }) {
+  const [personalCombos, setPersonalCombos] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [tab, setTab] = useState('All');
+  const [query, setQuery] = useState('');
+  const [menu, setMenu] = useState(null);
+  const combos = useMemo(() => personalCombos.filter((combo) => {
+    const tabMatch = tab === 'All' || combo.status === tab;
+    return tabMatch && `${combo.character} ${combo.title}`.toLowerCase().includes(query.toLowerCase());
+  }), [personalCombos, tab, query]);
+
+  const refreshCombos = async () => {
+    try {
+      setLoadError('');
+      setPersonalCombos(await getCombos());
+    } catch (problem) {
+      setLoadError(problem.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    let active = true;
+    getCombos()
+      .then((result) => { if (active) setPersonalCombos(result); })
+      .catch((problem) => { if (active) setLoadError(problem.message); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, []);
+
+  const remove = async (comboId) => {
+    await deleteCombo(comboId);
+    await refreshCombos();
+    setMenu(null);
+  };
+
+  const duplicate = async (comboId) => {
+    await duplicateCombo(comboId);
+    await refreshCombos();
+    setMenu(null);
+  };
+
+  const publishedCount = personalCombos.filter((combo) => combo.status === 'Published').length;
+  const draftCount = personalCombos.filter((combo) => combo.status === 'Draft').length;
+  const totalViews = personalCombos.reduce((sum, combo) => sum + Number(combo.views || 0), 0);
+  const totalSaves = personalCombos.reduce((sum, combo) => sum + Number(combo.saves || 0), 0);
+
+  return (
+    <div className="home-page library-page">
+      <Header navigate={navigate} active="mine" user={user} />
+      <main className="library-main">
+        <section className="library-heading my-heading">
+          <div><p className="eyebrow">PERSONAL LAB</p><h1>My combos</h1><p>Build, organize, and refine your fighting-game routes.</p></div>
+          <button className="create-button" onClick={() => navigate('/create')} type="button"><span>＋</span> Create Combo</button>
+        </section>
+        <section className="mini-stats">
+          <article><span className="stat-icon orange">✦</span><div><small>TOTAL COMBOS</small><strong>{personalCombos.length}</strong></div><em>Your library</em></article>
+          <article><span className="stat-icon blue">◈</span><div><small>TOTAL VIEWS</small><strong>{totalViews.toLocaleString()}</strong></div><em>All time</em></article>
+          <article><span className="stat-icon purple">♥</span><div><small>TOTAL SAVES</small><strong>{totalSaves.toLocaleString()}</strong></div><em>All time</em></article>
+        </section>
+        <section className="my-library-panel">
+          <div className="my-toolbar">
+            <div className="library-tabs">
+              {['All', 'Published', 'Draft'].map((item) => <button className={tab === item ? 'active' : ''} onClick={() => setTab(item)} type="button" key={item}>{item}<span>{item === 'All' ? personalCombos.length : item === 'Published' ? publishedCount : draftCount}</span></button>)}
+            </div>
+            <label className="search-box small"><span>⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search your combos..." /></label>
+          </div>
+          <div className="my-combo-list">
+            {loading && <p className="library-message">Loading your combos…</p>}
+            {loadError && <p className="library-message error" role="alert">{loadError}</p>}
+            {combos.map((combo) => (
+              <article className="my-combo-row" key={combo.id}>
+                <div className={`fighter-avatar ${fighterColor(combo.character)}`}>{combo.character[0]}</div>
+                <div className="my-combo-info"><div><span>{combo.character} · SF6</span><i className={combo.status.toLowerCase()}>{combo.status}</i></div><h2>{combo.title}</h2><code>{combo.notation}</code></div>
+                <div className="my-combo-number"><small>DAMAGE</small><strong>{combo.damage}</strong></div>
+                <div className="my-combo-number"><small>VIEWS</small><strong>{combo.views}</strong></div>
+                <div className="updated"><small>UPDATED</small><span>{relativeDate(combo.updatedAt)}</span></div>
+                <div className="row-menu-wrap"><button className="row-menu" onClick={() => setMenu(menu === combo.id ? null : combo.id)} type="button" aria-label={`Actions for ${combo.title}`}>•••</button>{menu === combo.id && <div className="menu-popover"><button type="button" onClick={() => duplicate(combo.id)}>Duplicate</button><button type="button" onClick={() => navigator.clipboard?.writeText(combo.notation)}>Copy notation</button><button className="delete-action" type="button" onClick={() => remove(combo.id)}>Delete</button></div>}</div>
+              </article>
+            ))}
+          </div>
+          {!loading && !loadError && combos.length === 0 && <div className="empty-results"><strong>No combos here yet</strong><p>Try a different search or create a new combo.</p></div>}
+          <div className="library-footer"><span>Showing {combos.length} of {personalCombos.length} combos</span></div>
+        </section>
+      </main>
+    </div>
+  );
+}
+
+export default MyCombos;
