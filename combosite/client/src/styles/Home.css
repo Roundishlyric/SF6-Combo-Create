@@ -75,9 +75,11 @@
 .combo-top { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 11px; }
 .fighter-avatar { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 50%; font-weight: 900; }.fighter-avatar.orange { background: #c84d21; }.fighter-avatar.purple { background: #783ea4; }.fighter-avatar.blue { background: #246da7; }
 .combo-top > div:nth-child(2) { display: flex; flex-direction: column; }.combo-top strong { font-size: .86rem; }.combo-top span { color: #747e90; font-size: .64rem; }.combo-top button { border: 0; background: transparent; color: #8c95a5; font-size: 1.3rem; cursor: pointer; }
+.combo-top button.liked { color: #ff6245; }
 .combo-card h3 { margin: 20px 0 12px; font-size: .96rem; }
 .combo-inputs { min-height: 50px; padding: 11px; border-radius: 8px; background: #080a10; color: #d7dce5; font-family: ui-monospace, Consolas, monospace; font-size: .7rem; line-height: 1.6; }
 .combo-meta { display: flex; gap: 28px; margin-top: 16px; }.combo-meta span { display: flex; flex-direction: column; }.combo-meta small { color: #646e80; font-size: .53rem; letter-spacing: .12em; }.combo-meta strong { margin-top: 3px; font-size: .72rem; }
+.home-combo-message { padding: 34px 18px; border: 1px dashed var(--home-border); border-radius: 14px; color: #8d96a5; text-align: center; }.home-combo-message strong { color: white; }.home-combo-message p { margin-top: 5px; font-size: .72rem; }.home-combo-message.error { color: #ff755a; }
 .home-footer { display: flex; align-items: center; gap: 24px; padding: 25px max(24px, calc((100% - 1180px) / 2)); border-top: 1px solid var(--home-border); color: #737d8e; font-size: .72rem; }.home-footer span { color: white; font-weight: 900; }.home-footer small { margin-left: auto; }
 
 @media (max-width: 800px) {

@@ -10,6 +10,10 @@
   --border: rgba(255, 255, 255, 0.12);
 }
 
+#root:has(.login-page) {
+  border-inline: 0;
+}
+
 .login-label {
   display: flex;
   flex-direction: column;

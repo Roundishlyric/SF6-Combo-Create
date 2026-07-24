@@ -157,6 +157,36 @@ const server = createServer(async (request, response) => {
       const combos = await database.combos.find({ userId: auth.user.id }, { projection: { _id: 0 } }).sort({ updatedAt: -1 }).toArray();
       return send(response, 200, { combos });
     }
+    if (request.method === 'GET' && path === '/api/explore') {
+      const combos = await database.combos
+        .find({ status: 'Published', visibility: 'Public' }, { projection: { _id: 0 } })
+        .sort({ createdAt: -1 })
+        .toArray();
+      const userIds = [...new Set(combos.map((combo) => combo.userId))];
+      const comboIds = combos.map((combo) => combo.id);
+      const [creators, likeCounts, userLikes] = await Promise.all([
+        database.users.find({ id: { $in: userIds } }, { projection: { _id: 0, id: 1, name: 1 } }).toArray(),
+        database.likes.aggregate([
+          { $match: { comboId: { $in: comboIds } } },
+          { $group: { _id: '$comboId', count: { $sum: 1 } } },
+        ]).toArray(),
+        database.likes.find(
+          { userId: auth.user.id, comboId: { $in: comboIds } },
+          { projection: { _id: 0, comboId: 1 } },
+        ).toArray(),
+      ]);
+      const creatorNames = new Map(creators.map((creator) => [creator.id, creator.name]));
+      const counts = new Map(likeCounts.map((entry) => [entry._id, entry.count]));
+      const likedIds = new Set(userLikes.map((entry) => entry.comboId));
+      return send(response, 200, {
+        combos: combos.map((combo) => ({
+          ...combo,
+          creator: creatorNames.get(combo.userId) || 'Unknown player',
+          likes: counts.get(combo.id) || 0,
+          liked: likedIds.has(combo.id),
+        })),
+      });
+    }
     if (request.method === 'POST' && path === '/api/combos') {
       const body = await readBody(request);
       validateCombo(body);
@@ -186,7 +216,32 @@ const server = createServer(async (request, response) => {
     }
     if (comboMatch && request.method === 'DELETE') {
       const result = await database.combos.deleteOne({ id: comboMatch[1], userId: auth.user.id });
-      return result.deletedCount ? send(response, 200, { message: 'Combo deleted.' }) : send(response, 404, { error: 'Combo not found.' });
+      if (!result.deletedCount) return send(response, 404, { error: 'Combo not found.' });
+      await database.likes.deleteMany({ comboId: comboMatch[1] });
+      return send(response, 200, { message: 'Combo deleted.' });
+    }
+
+    const likeMatch = path.match(/^\/api\/combos\/([^/]+)\/like$/);
+    if (likeMatch && request.method === 'POST') {
+      const combo = await database.combos.findOne({
+        id: likeMatch[1],
+        status: 'Published',
+        visibility: 'Public',
+      });
+      if (!combo) return send(response, 404, { error: 'Published combo not found.' });
+      const existing = await database.likes.findOne({ comboId: combo.id, userId: auth.user.id });
+      if (existing) {
+        await database.likes.deleteOne({ comboId: combo.id, userId: auth.user.id });
+      } else {
+        await database.likes.insertOne({
+          comboId: combo.id,
+          userId: auth.user.id,
+          createdAt: new Date().toISOString(),
+        });
+      }
+      const likes = await database.likes.countDocuments({ comboId: combo.id });
+      await database.combos.updateOne({ id: combo.id }, { $set: { saves: likes } });
+      return send(response, 200, { liked: !existing, likes });
     }
 
     const duplicateMatch = path.match(/^\/api\/combos\/([^/]+)\/duplicate$/);

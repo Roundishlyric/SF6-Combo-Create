@@ -23,6 +23,8 @@ export async function connectDatabase() {
     database.collection('sessions').createIndex({ token: 1 }, { unique: true }),
     database.collection('sessions').createIndex({ userId: 1 }),
     database.collection('combos').createIndex({ userId: 1, updatedAt: -1 }),
+    database.collection('likes').createIndex({ userId: 1, comboId: 1 }, { unique: true }),
+    database.collection('likes').createIndex({ comboId: 1 }),
   ]);
 
   return database;
@@ -34,6 +36,7 @@ export async function collections() {
     users: db.collection('users'),
     sessions: db.collection('sessions'),
     combos: db.collection('combos'),
+    likes: db.collection('likes'),
   };
 }
 

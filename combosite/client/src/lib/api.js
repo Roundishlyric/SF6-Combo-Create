@@ -57,6 +57,11 @@ export const logoutUser = async () => {
 
 export const getCombos = async () => (await request('/api/combos')).combos;
 
+export const getExploreCombos = async () => (await request('/api/explore')).combos;
+
+export const toggleComboLike = async (comboId) =>
+  request(`/api/combos/${comboId}/like`, { method: 'POST' });
+
 export const uploadVideo = async (file) => {
   const session = storedSession();
   const response = await fetch('/api/videos', {

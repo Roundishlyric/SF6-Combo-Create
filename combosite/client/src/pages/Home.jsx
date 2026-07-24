@@ -1,13 +1,51 @@
+import { useEffect, useMemo, useState } from 'react';
 import sf6Art from '../assets/sf6.jpg';
 import '../styles/Home.css';
+import { getCombos, getExploreCombos, toggleComboLike } from '../lib/api.js';
 
-const combos = [
-  { character: 'Ken', initials: 'K', title: 'Corner carry punish', inputs: '2MP  ·  5HP  ·  DR  ·  5HP  ·  623HP', damage: '3,420', level: 'Advanced', color: 'orange' },
-  { character: 'Juri', initials: 'J', title: 'Drive rush conversion', inputs: 'DR  ·  5MP  ·  2MP  ·  214MK  ·  6HK', damage: '2,860', level: 'Intermediate', color: 'purple' },
-  { character: 'Luke', initials: 'L', title: 'Reliable midscreen BnB', inputs: '2MK  ·  236MP  ·  623HP', damage: '2,140', level: 'Beginner', color: 'blue' },
-];
+const fighterColor = (fighter) => {
+  if (['Ken', 'Marisa', 'Dhalsim'].includes(fighter)) return 'orange';
+  if (['Juri', 'A.K.I.', 'M. Bison'].includes(fighter)) return 'purple';
+  if (['Luke', 'Chun-Li', 'Guile'].includes(fighter)) return 'blue';
+  return 'red';
+};
 
 function Home({ navigate, user }) {
+  const [publishedCombos, setPublishedCombos] = useState([]);
+  const [myCombos, setMyCombos] = useState([]);
+  const [comboError, setComboError] = useState('');
+  const trendingCombos = useMemo(
+    () => [...publishedCombos].sort((a, b) => b.likes - a.likes || new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 3),
+    [publishedCombos],
+  );
+
+  useEffect(() => {
+    let active = true;
+    Promise.all([getExploreCombos(), getCombos()])
+      .then(([community, personal]) => {
+        if (active) {
+          setPublishedCombos(community);
+          setMyCombos(personal);
+        }
+      })
+      .catch((problem) => { if (active) setComboError(problem.message); });
+    return () => { active = false; };
+  }, []);
+
+  const toggleLiked = async (comboId) => {
+    setComboError('');
+    try {
+      const result = await toggleComboLike(comboId);
+      setPublishedCombos((current) => current.map((combo) =>
+        combo.id === comboId ? { ...combo, liked: result.liked, likes: result.likes } : combo
+      ));
+    } catch (problem) {
+      setComboError(problem.message);
+    }
+  };
+  const totalLikes = myCombos.reduce((sum, combo) => sum + Number(combo.saves || 0), 0);
+  const totalViews = myCombos.reduce((sum, combo) => sum + Number(combo.views || 0), 0);
+
   const go = (event, path) => {
     event.preventDefault();
     navigate(path);
@@ -36,7 +74,6 @@ function Home({ navigate, user }) {
       <main className="home-main">
         <section className="welcome-row">
           <div>
-            <p className="eyebrow">PLAYER DASHBOARD</p>
             <h1>Welcome back, {user.name.split(' ')[0]}.</h1>
             <p>Your next combo starts with one clean hit.</p>
           </div>
@@ -47,21 +84,20 @@ function Home({ navigate, user }) {
           <img src={sf6Art} alt="Street Fighter 6 roster artwork" />
           <div className="feature-shade" />
           <div className="feature-copy">
-            <span className="feature-label">FEATURED THIS WEEK</span>
             <h2>Master the neutral.<br />Own the match.</h2>
             <p>Explore community-tested routes, matchup tech, and creative conversions for every fighter.</p>
             <button onClick={() => navigate('/combos')}>Explore Combos <span>→</span></button>
           </div>
           <div className="feature-stat">
-            <strong>1,284</strong>
+            <strong>{publishedCombos.length.toLocaleString()}</strong>
             <span>COMBOS SHARED</span>
           </div>
         </section>
 
         <section className="stats-grid" aria-label="Your statistics">
-          <article><span className="stat-icon orange">✦</span><div><strong>12</strong><span>Combos created</span></div><small>+3 this week</small></article>
-          <article><span className="stat-icon blue">◆</span><div><strong>47</strong><span>Combos saved</span></div><small>Keep training</small></article>
-          <article><span className="stat-icon purple">⌁</span><div><strong>2.6K</strong><span>Total views</span></div><small>+18% this month</small></article>
+          <article><span className="stat-icon orange">✦</span><div><strong>{myCombos.length}</strong><span>Combos created</span></div></article>
+          <article><span className="stat-icon blue">♥</span><div><strong>{totalLikes}</strong><span>Likes received</span></div></article>
+          <article><span className="stat-icon purple">◉</span><div><strong>{totalViews}</strong><span>Total views</span></div></article>
         </section>
 
         <section className="combo-section">
@@ -70,23 +106,28 @@ function Home({ navigate, user }) {
             <button onClick={() => navigate('/combos')}>View all <span>→</span></button>
           </div>
 
+          {comboError && <p className="home-combo-message error" role="alert">{comboError}</p>}
           <div className="combo-grid">
-            {combos.map((combo) => (
-              <article className="combo-card" key={combo.title}>
+            {trendingCombos.map((combo) => (
+              <article className="combo-card" key={combo.id}>
                 <div className="combo-top">
-                  <div className={`fighter-avatar ${combo.color}`}>{combo.initials}</div>
-                  <div><strong>{combo.character}</strong><span>Street Fighter 6</span></div>
-                  <button aria-label={`Save ${combo.title}`}>♡</button>
+                  <div className={`fighter-avatar ${fighterColor(combo.character)}`}>{combo.character[0]}</div>
+                  <div><strong>{combo.character}</strong><span>by {combo.creator}</span></div>
+                  <button className={combo.liked ? 'liked' : ''} onClick={() => toggleLiked(combo.id)} aria-label={`${combo.liked ? 'Unlike' : 'Like'} ${combo.title}`}>{combo.liked ? '♥' : '♡'}</button>
                 </div>
                 <h3>{combo.title}</h3>
-                <div className="combo-inputs">{combo.inputs}</div>
+                <div className="combo-inputs">{combo.notation}</div>
                 <div className="combo-meta">
-                  <span><small>DAMAGE</small><strong>{combo.damage}</strong></span>
-                  <span><small>DIFFICULTY</small><strong>{combo.level}</strong></span>
+                  <span><small>DAMAGE</small><strong>{combo.damage || '—'}</strong></span>
+                  <span><small>DIFFICULTY</small><strong>{combo.difficulty}</strong></span>
+                  <span><small>LIKES</small><strong>{combo.likes}</strong></span>
                 </div>
               </article>
             ))}
           </div>
+          {!comboError && trendingCombos.length === 0 && (
+            <div className="home-combo-message"><strong>No published combos yet</strong><p>Publish a public combo to feature it here.</p></div>
+          )}
         </section>
       </main>
 
