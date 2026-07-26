@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import '../styles/Home.css';
 import '../styles/Profile.css';
 import { getCombos } from '../lib/api.js';
+import { getCharacterImage } from '../lib/characterImages.js';
 
 const fighterColor = (fighter) => {
   if (['Ken', 'Marisa', 'Dhalsim'].includes(fighter)) return 'orange';
@@ -28,6 +29,12 @@ function Profile({ navigate, user, onLogout }) {
 
   const totalViews = combos.reduce((sum, combo) => sum + Number(combo.views || 0), 0);
   const totalLikes = combos.reduce((sum, combo) => sum + Number(combo.saves || 0), 0);
+  const confirmLogout = () => {
+    if (window.confirm('Are you sure you want to log out?')) {
+      onLogout();
+    }
+  };
+
   const go = (event, path) => {
     event.preventDefault();
     navigate(path);
@@ -60,7 +67,7 @@ function Profile({ navigate, user, onLogout }) {
               <p className="player-handle">{user.email}</p>
             </div>
             <div className="profile-actions">
-              <button className="logout-button" type="button" onClick={onLogout}>
+              <button className="logout-button" type="button" onClick={confirmLogout}>
                 <span aria-hidden="true">↪</span> Log out
               </button>
             </div>
@@ -82,7 +89,9 @@ function Profile({ navigate, user, onLogout }) {
             <div className="profile-combo-list">
               {recentCombos.map((combo) => (
                 <article className="profile-combo" key={combo.id}>
-                  <div className={`fighter-avatar ${fighterColor(combo.character)}`}>{combo.character[0]}</div>
+                  <div className={`fighter-avatar ${fighterColor(combo.character)}`}>
+                    <img src={getCharacterImage(combo.character)} alt={combo.character} loading="lazy" decoding="async" width="160" height="160" />
+                  </div>
                   <div className="profile-combo-copy">
                     <span>{combo.character} · STREET FIGHTER 6</span>
                     <h3>{combo.title}</h3>

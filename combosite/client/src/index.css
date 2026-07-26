@@ -54,6 +54,15 @@ body {
   margin: 0;
 }
 
+.route-loading {
+  display: grid;
+  min-height: 100svh;
+  place-items: center;
+  background: #080a10;
+  color: #9ca5b5;
+  font-size: .8rem;
+}
+
 #root {
   width: 1126px;
   max-width: 100%;
@@ -108,4 +117,68 @@ code {
   line-height: 135%;
   padding: 4px 8px;
   background: var(--code-bg);
+}
+
+/* A tighter corner system keeps the interface crisp and consistent. */
+button,
+input,
+select,
+textarea,
+code,
+.login-shell,
+.login-badge,
+.login-form,
+.login-label,
+.brand-mark,
+.feature-card,
+.feature-label,
+.stats-grid article,
+.stat-icon,
+.combo-card,
+.combo-inputs,
+.home-combo-message,
+.explore-hero,
+.filter-panel,
+.search-box,
+.filter-toggle,
+.community-count,
+.combo-toolbar,
+.explore-card,
+.explore-notation,
+.explore-video,
+.empty-results,
+.mini-stats article,
+.my-library-panel,
+.menu-popover,
+.form-panel,
+.publish-panel,
+.panel-heading > span,
+.notation-help span,
+.locked-field,
+.character-options,
+.character-option-image,
+.video-dropzone,
+.video-icon,
+.browse-video,
+.video-preview,
+.profile-hero,
+.cover-streak,
+.profile-portrait,
+.player-level,
+.player-tags span,
+.profile-combo,
+.view-all-combos,
+.profile-message,
+.side-card,
+.achievement > span {
+  border-radius: 6px !important;
+}
+
+/* These communicate identity or status and should remain true circles. */
+.avatar,
+.icon-button,
+.fighter-avatar,
+.draft-status i,
+.profile-portrait i {
+  border-radius: 50% !important;
 }

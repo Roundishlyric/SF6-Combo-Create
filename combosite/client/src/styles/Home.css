@@ -44,7 +44,8 @@
 .eyebrow { margin: 0 0 8px; color: #ff694e; font-size: .68rem; font-weight: 900; letter-spacing: .18em; }
 .welcome-row h1 { margin: 0; color: white; font-size: clamp(1.8rem, 4vw, 2.7rem); line-height: 1.08; font-weight: 800; letter-spacing: -.04em; }
 .welcome-row > div > p:last-child { margin-top: 10px; color: #929bad; font-size: .92rem; }
-.create-button { padding: 13px 20px; border: 0; border-radius: 10px; background: linear-gradient(100deg, #ff4328, #ff7433); color: white; font-weight: 800; cursor: pointer; box-shadow: 0 10px 25px rgba(255, 64, 38, .2); }
+.create-button, .publish-button, .follow-button { padding: 13px 20px; border: 0; border-radius: 10px; background: linear-gradient(100deg, #ff4328, #ff7433); color: white; font-weight: 800; cursor: pointer; box-shadow: 0 10px 25px rgba(255, 64, 38, .2); transition: transform .18s ease, box-shadow .18s ease, filter .18s ease; }
+.create-button:hover, .publish-button:hover, .follow-button:hover { transform: translateY(-1px); box-shadow: 0 12px 28px rgba(255, 64, 38, .28); filter: brightness(1.03); }
 .create-button span { margin-right: 7px; font-size: 1.1rem; }
 
 .feature-card { position: relative; min-height: 390px; overflow: hidden; border: 1px solid var(--home-border); border-radius: 22px; background: #131722; }
@@ -73,7 +74,8 @@
 .combo-card { padding: 20px; border: 1px solid var(--home-border); border-radius: 15px; background: linear-gradient(145deg, #121620, #0d1018); transition: transform .2s, border-color .2s; }
 .combo-card:hover { transform: translateY(-3px); border-color: rgba(255, 93, 57, .35); }
 .combo-top { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 11px; }
-.fighter-avatar { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 50%; font-weight: 900; }.fighter-avatar.orange { background: #c84d21; }.fighter-avatar.purple { background: #783ea4; }.fighter-avatar.blue { background: #246da7; }
+.fighter-avatar { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 50%; overflow: hidden; background: #111521; }.fighter-avatar img { width: 100%; height: 100%; object-fit: cover; object-position: center; }
+.fighter-avatar.orange { background: #c84d21; }.fighter-avatar.purple { background: #783ea4; }.fighter-avatar.blue { background: #246da7; }
 .combo-top > div:nth-child(2) { display: flex; flex-direction: column; }.combo-top strong { font-size: .86rem; }.combo-top span { color: #747e90; font-size: .64rem; }.combo-top button { border: 0; background: transparent; color: #8c95a5; font-size: 1.3rem; cursor: pointer; }
 .combo-top button.liked { color: #ff6245; }
 .combo-card h3 { margin: 20px 0 12px; font-size: .96rem; }

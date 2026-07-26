@@ -1,12 +1,13 @@
-import { useEffect, useState } from 'react';
-import Login from './pages/Login.jsx';
-import Register from './pages/Register.jsx';
-import Home from './pages/Home.jsx';
-import Create from './pages/Create.jsx';
-import Profile from './pages/Profile.jsx';
-import Combos from './pages/Combos.jsx';
-import MyCombos from './pages/MyCombos.jsx';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { getSession, loginUser, logoutUser, registerUser } from './lib/api.js';
+
+const Login = lazy(() => import('./pages/Login.jsx'));
+const Register = lazy(() => import('./pages/Register.jsx'));
+const Home = lazy(() => import('./pages/Home.jsx'));
+const Create = lazy(() => import('./pages/Create.jsx'));
+const Profile = lazy(() => import('./pages/Profile.jsx'));
+const Combos = lazy(() => import('./pages/Combos.jsx'));
+const MyCombos = lazy(() => import('./pages/MyCombos.jsx'));
 
 function App() {
   const [path, setPath] = useState(window.location.pathname);
@@ -41,37 +42,29 @@ function App() {
     navigate('/login');
   };
 
+  let page;
+
   if (path === '/register') {
-    return user ? <Home navigate={navigate} user={user} /> : <Register navigate={navigate} onRegister={register} />;
+    page = user ? <Home navigate={navigate} user={user} /> : <Register navigate={navigate} onRegister={register} />;
+  } else if (path === '/' || path === '/login') {
+    page = user ? <Home navigate={navigate} user={user} /> : <Login navigate={navigate} onLogin={login} />;
+  } else if (!user) {
+    page = <Login navigate={navigate} onLogin={login} />;
+  } else if (path === '/home') {
+    page = <Home navigate={navigate} user={user} />;
+  } else if (path === '/create') {
+    page = <Create navigate={navigate} user={user} />;
+  } else if (path === '/combos') {
+    page = <Combos navigate={navigate} user={user} />;
+  } else if (path === '/my-combos') {
+    page = <MyCombos navigate={navigate} user={user} />;
+  } else if (path === '/profile') {
+    page = <Profile navigate={navigate} user={user} onLogout={logout} />;
+  } else {
+    page = <Home navigate={navigate} user={user} />;
   }
 
-  if (path === '/' || path === '/login') {
-    return user ? <Home navigate={navigate} user={user} /> : <Login navigate={navigate} onLogin={login} />;
-  }
-
-  if (!user) return <Login navigate={navigate} onLogin={login} />;
-
-  if (path === '/home') {
-    return <Home navigate={navigate} user={user} />;
-  }
-
-  if (path === '/create') {
-    return <Create navigate={navigate} user={user} />;
-  }
-
-  if (path === '/combos') {
-    return <Combos navigate={navigate} user={user} />;
-  }
-
-  if (path === '/my-combos') {
-    return <MyCombos navigate={navigate} user={user} />;
-  }
-
-  if (path === '/profile') {
-    return <Profile navigate={navigate} user={user} onLogout={logout} />;
-  }
-
-  return <Home navigate={navigate} user={user} />;
+  return <Suspense fallback={<div className="route-loading" role="status">Loading…</div>}>{page}</Suspense>;
 }
 
 export default App;

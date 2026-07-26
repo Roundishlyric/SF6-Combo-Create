@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import AuthLayout from '../components/AuthLayout.jsx';
-import sf6 from '../assets/sf6.jpg';
+import sf6 from '../assets/sf6-optimized.jpg';
 import '../styles/Login.css';
 
 function Login({ navigate, onLogin }) {

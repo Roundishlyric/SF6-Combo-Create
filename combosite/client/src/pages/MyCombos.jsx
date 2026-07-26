@@ -3,6 +3,7 @@ import { Header } from './Combos.jsx';
 import '../styles/Home.css';
 import '../styles/Library.css';
 import { deleteCombo, duplicateCombo, getCombos } from '../lib/api.js';
+import { getCharacterImage } from '../lib/characterImages.js';
 
 const fighterColor = (fighter) => {
   if (['Ken', 'Marisa', 'Dhalsim'].includes(fighter)) return 'orange';
@@ -72,13 +73,13 @@ function MyCombos({ navigate, user }) {
       <Header navigate={navigate} active="mine" user={user} />
       <main className="library-main">
         <section className="library-heading my-heading">
-          <div><p className="eyebrow">PERSONAL LAB</p><h1>My combos</h1><p>Build, organize, and refine your fighting-game routes.</p></div>
+          <div><h1>My combos</h1></div>
           <button className="create-button" onClick={() => navigate('/create')} type="button"><span>＋</span> Create Combo</button>
         </section>
         <section className="mini-stats">
-          <article><span className="stat-icon orange">✦</span><div><small>TOTAL COMBOS</small><strong>{personalCombos.length}</strong></div><em>Your library</em></article>
-          <article><span className="stat-icon blue">◈</span><div><small>TOTAL VIEWS</small><strong>{totalViews.toLocaleString()}</strong></div><em>All time</em></article>
-          <article><span className="stat-icon purple">♥</span><div><small>TOTAL SAVES</small><strong>{totalSaves.toLocaleString()}</strong></div><em>All time</em></article>
+          <article><span className="stat-icon orange">✦</span><div><small>TOTAL COMBOS</small><strong>{personalCombos.length}</strong></div></article>
+          <article><span className="stat-icon blue">◈</span><div><small>TOTAL VIEWS</small><strong>{totalViews.toLocaleString()}</strong></div></article>
+          <article><span className="stat-icon purple">♥</span><div><small>TOTAL SAVES</small><strong>{totalSaves.toLocaleString()}</strong></div></article>
         </section>
         <section className="my-library-panel">
           <div className="my-toolbar">
@@ -92,7 +93,9 @@ function MyCombos({ navigate, user }) {
             {loadError && <p className="library-message error" role="alert">{loadError}</p>}
             {combos.map((combo) => (
               <article className="my-combo-row" key={combo.id}>
-                <div className={`fighter-avatar ${fighterColor(combo.character)}`}>{combo.character[0]}</div>
+                <div className={`fighter-avatar ${fighterColor(combo.character)}`}>
+                  <img src={getCharacterImage(combo.character)} alt={combo.character} loading="lazy" decoding="async" width="160" height="160" />
+                </div>
                 <div className="my-combo-info"><div><span>{combo.character} · SF6</span><i className={combo.status.toLowerCase()}>{combo.status}</i></div><h2>{combo.title}</h2><code>{combo.notation}</code></div>
                 <div className="my-combo-number"><small>DAMAGE</small><strong>{combo.damage}</strong></div>
                 <div className="my-combo-number"><small>VIEWS</small><strong>{combo.views}</strong></div>

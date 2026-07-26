@@ -83,9 +83,32 @@ const server = createServer(async (request, response) => {
       const filePath = join(uploadsDirectory, uploadMatch[1]);
       const file = await stat(filePath);
       const contentTypes = { '.mp4': 'video/mp4', '.webm': 'video/webm', '.mov': 'video/quicktime' };
+      const contentType = contentTypes[extname(filePath).toLowerCase()] || 'application/octet-stream';
+      const range = request.headers.range;
+      if (range) {
+        const match = /^bytes=(\d*)-(\d*)$/.exec(range);
+        const start = match?.[1] ? Number(match[1]) : 0;
+        const end = match?.[2] ? Math.min(Number(match[2]), file.size - 1) : file.size - 1;
+        if (!match || !Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start > end || start >= file.size) {
+          response.writeHead(416, {
+            'Content-Range': `bytes */${file.size}`,
+            'Access-Control-Allow-Origin': 'http://localhost:5173',
+          });
+          return response.end();
+        }
+        response.writeHead(206, {
+          'Content-Type': contentType,
+          'Content-Length': end - start + 1,
+          'Content-Range': `bytes ${start}-${end}/${file.size}`,
+          'Accept-Ranges': 'bytes',
+          'Access-Control-Allow-Origin': 'http://localhost:5173',
+        });
+        return createReadStream(filePath, { start, end }).pipe(response);
+      }
       response.writeHead(200, {
-        'Content-Type': contentTypes[extname(filePath).toLowerCase()] || 'application/octet-stream',
+        'Content-Type': contentType,
         'Content-Length': file.size,
+        'Accept-Ranges': 'bytes',
         'Access-Control-Allow-Origin': 'http://localhost:5173',
       });
       return createReadStream(filePath).pipe(response);

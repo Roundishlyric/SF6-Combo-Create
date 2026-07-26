@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import sf6Art from '../assets/sf6.jpg';
+import sf6Art from '../assets/sf6-optimized.jpg';
 import '../styles/Home.css';
 import { getCombos, getExploreCombos, toggleComboLike } from '../lib/api.js';
+import { getCharacterImage } from '../lib/characterImages.js';
 
 const fighterColor = (fighter) => {
   if (['Ken', 'Marisa', 'Dhalsim'].includes(fighter)) return 'orange';
@@ -75,13 +76,12 @@ function Home({ navigate, user }) {
         <section className="welcome-row">
           <div>
             <h1>Welcome back, {user.name.split(' ')[0]}.</h1>
-            <p>Your next combo starts with one clean hit.</p>
           </div>
           <button className="create-button" onClick={() => navigate('/create')}><span>＋</span> Create Combo</button>
         </section>
 
         <section className="feature-card">
-          <img src={sf6Art} alt="Street Fighter 6 roster artwork" />
+          <img src={sf6Art} alt="Street Fighter 6 roster artwork" fetchPriority="high" />
           <div className="feature-shade" />
           <div className="feature-copy">
             <h2>Master the neutral.<br />Own the match.</h2>
@@ -102,7 +102,7 @@ function Home({ navigate, user }) {
 
         <section className="combo-section">
           <div className="section-heading">
-            <div><p className="eyebrow">COMMUNITY PICKS</p><h2>Trending Combos</h2></div>
+            <div><h2>Trending Combos</h2></div>
             <button onClick={() => navigate('/combos')}>View all <span>→</span></button>
           </div>
 
@@ -111,7 +111,9 @@ function Home({ navigate, user }) {
             {trendingCombos.map((combo) => (
               <article className="combo-card" key={combo.id}>
                 <div className="combo-top">
-                  <div className={`fighter-avatar ${fighterColor(combo.character)}`}>{combo.character[0]}</div>
+                  <div className={`fighter-avatar ${fighterColor(combo.character)}`}>
+                    <img src={getCharacterImage(combo.character)} alt={combo.character} loading="lazy" decoding="async" width="160" height="160" />
+                  </div>
                   <div><strong>{combo.character}</strong><span>by {combo.creator}</span></div>
                   <button className={combo.liked ? 'liked' : ''} onClick={() => toggleLiked(combo.id)} aria-label={`${combo.liked ? 'Unlike' : 'Like'} ${combo.title}`}>{combo.liked ? '♥' : '♡'}</button>
                 </div>
@@ -131,7 +133,7 @@ function Home({ navigate, user }) {
         </section>
       </main>
 
-      <footer className="home-footer"><span>Hadoukraft</span><p>Train smarter. Hit harder.</p><small>© 2026 Hadoukraft</small></footer>
+      <footer className="home-footer"><span>Hadoukraft</span><small>© 2026 Hadoukraft</small></footer>
     </div>
   );
 }

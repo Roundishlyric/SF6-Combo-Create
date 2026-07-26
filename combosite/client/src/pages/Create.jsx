@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import '../styles/Home.css';
 import '../styles/Create.css';
 import { saveCombo, uploadVideo } from '../lib/api.js';
+import { getCharacterImage } from '../lib/characterImages.js';
 
 const initialForm = {
   game: 'Street Fighter 6',
@@ -27,11 +28,16 @@ function Create({ navigate, user }) {
   const [form, setForm] = useState(initialForm);
   const [submitted, setSubmitted] = useState(false);
   const [video, setVideo] = useState(null);
+  const [videoPreviewUrl, setVideoPreviewUrl] = useState('');
   const [characterQuery, setCharacterQuery] = useState('');
   const [characterOpen, setCharacterOpen] = useState(false);
   const [characterError, setCharacterError] = useState(false);
   const [videoError, setVideoError] = useState('');
   const [submitError, setSubmitError] = useState('');
+
+  useEffect(() => () => {
+    if (videoPreviewUrl) URL.revokeObjectURL(videoPreviewUrl);
+  }, [videoPreviewUrl]);
 
   const go = (event, path) => {
     event.preventDefault();
@@ -51,6 +57,11 @@ function Create({ navigate, user }) {
       setCharacterOpen(true);
       return;
     }
+    const confirmed = window.confirm(
+      `Publish "${form.title.trim()}" as a ${form.visibility.toLowerCase()} combo?`,
+    );
+    if (!confirmed) return;
+
     try {
       const uploadedVideo = video ? await uploadVideo(video) : null;
       await saveCombo({
@@ -80,14 +91,17 @@ function Create({ navigate, user }) {
     setVideoError('');
     if (!file) {
       setVideo(null);
+      setVideoPreviewUrl('');
       return;
     }
     if (file.size > 100 * 1024 * 1024) {
       setVideo(null);
+      setVideoPreviewUrl('');
       setVideoError('Video must be 100 MB or smaller.');
       return;
     }
     setVideo(file);
+    setVideoPreviewUrl(URL.createObjectURL(file));
   };
 
   return (
@@ -113,9 +127,7 @@ function Create({ navigate, user }) {
       <main className="create-main">
         <div className="create-heading">
           <div>
-            <p className="eyebrow">COMBO LAB</p>
             <h1>Create a new combo</h1>
-            <p>Document the route, add the details, and share it with the community.</p>
           </div>
           <span className="draft-status"><i /> Draft</span>
         </div>
@@ -124,7 +136,7 @@ function Create({ navigate, user }) {
           <section className="form-panel form-primary">
             <div className="panel-heading">
               <span>01</span>
-              <div><h2>Combo details</h2><p>Start with the fighter and a clear, memorable title.</p></div>
+              <div><h2>Combo details</h2></div>
             </div>
 
             <div className="form-grid">
@@ -163,7 +175,10 @@ function Create({ navigate, user }) {
                           onClick={() => selectCharacter(character)}
                           key={character}
                         >
-                          <span>{character.charAt(0)}</span>{character}
+                          <span className="character-option-image">
+                            <img src={getCharacterImage(character)} alt={character} loading="lazy" decoding="async" width="160" height="160" />
+                          </span>
+                          {character}
                           {form.character === character && <b>✓</b>}
                         </button>
                       )) : <p>No character found</p>}
@@ -189,7 +204,7 @@ function Create({ navigate, user }) {
           <section className="form-panel form-route">
             <div className="panel-heading">
               <span>02</span>
-              <div><h2>Input notation</h2><p>Enter each move in order using standard fighting-game notation.</p></div>
+              <div><h2>Input notation</h2></div>
             </div>
             <label>Combo sequence
               <textarea name="notation" value={form.notation} onChange={updateField} placeholder="2MP  ·  5HP  ·  DR  ·  5HP  ·  623HP" required />
@@ -201,7 +216,7 @@ function Create({ navigate, user }) {
           <section className="form-panel form-setup">
             <div className="panel-heading">
               <span>03</span>
-              <div><h2>Setup & notes</h2><p>Add the conditions fighters need to recreate the combo.</p></div>
+              <div><h2>Setup & notes</h2></div>
             </div>
             <div className="form-grid">
               <label>Screen position
@@ -219,7 +234,7 @@ function Create({ navigate, user }) {
           <section className="form-panel form-video">
             <div className="panel-heading">
               <span>04</span>
-              <div><h2>Combo video <span className="optional">OPTIONAL</span></h2><p>Add a clip so players can see the timing and setup in action.</p></div>
+              <div><h2>Combo video <span className="optional">OPTIONAL</span></h2></div>
             </div>
             <label className={`video-dropzone ${video ? 'has-video' : ''}`}>
               <input
@@ -234,12 +249,20 @@ function Create({ navigate, user }) {
               </span>
               <span className="browse-video">{video ? 'Replace' : 'Browse file'}</span>
             </label>
+            {videoPreviewUrl && (
+              <div className="video-preview-wrap">
+                <video className="video-preview" src={videoPreviewUrl} controls preload="metadata">
+                  Your browser does not support video playback.
+                </video>
+                <small>Play the preview and check the volume control to confirm your file contains a browser-compatible audio track.</small>
+              </div>
+            )}
             {videoError && <p className="video-error" role="alert">{videoError}</p>}
-            {video && <button className="remove-video" type="button" onClick={() => setVideo(null)}>Remove attachment</button>}
+            {video && <button className="remove-video" type="button" onClick={() => { setVideo(null); setVideoPreviewUrl(''); }}>Remove attachment</button>}
           </section>
 
           <aside className="publish-panel">
-            <div><p className="eyebrow">READY TO SHARE?</p><h2>Publish your combo</h2><p>You can update the route and notes at any time.</p></div>
+            <div><p className="eyebrow">READY TO SHARE?</p><h2>Publish your combo</h2></div>
             <label>Visibility
               <select name="visibility" value={form.visibility} onChange={updateField}><option>Public</option><option>Private</option></select>
             </label>
