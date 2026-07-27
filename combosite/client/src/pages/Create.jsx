@@ -5,7 +5,6 @@ import { saveCombo, uploadVideo } from '../lib/api.js';
 import { getCharacterImage } from '../lib/characterImages.js';
 
 const initialForm = {
-  game: 'Street Fighter 6',
   character: '',
   title: '',
   difficulty: 'Intermediate',
@@ -140,9 +139,6 @@ function Create({ navigate, user }) {
             </div>
 
             <div className="form-grid">
-              <label>Game
-                <div className="locked-field"><strong>Street Fighter 6</strong><span aria-hidden="true">⌄</span></div>
-              </label>
               <label>Character
                 <div className="character-picker">
                   <span className="character-search" aria-hidden="true">⌕</span>

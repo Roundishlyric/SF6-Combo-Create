@@ -1,13 +1,78 @@
 .home-page {
-  --home-bg: #07090f;
-  --home-panel: #10131d;
-  --home-border: rgba(255, 255, 255, 0.09);
+  --home-bg: #0b0806;
+  --home-panel: #1a0e08;
+  --home-border: rgba(242, 193, 78, 0.14);
+  --sf-drive: #ff7a2f;
+  --sf-drive-strong: #e94b21;
+  --sf-gold: #f2c14e;
+  --sf-surface: #130b06;
+  --sf-surface-raised: #1a0e08;
   min-height: 100vh;
   width: 100%;
-  background: radial-gradient(circle at 82% 0%, rgba(34, 87, 145, 0.16), transparent 30%), var(--home-bg);
+  background: radial-gradient(circle at 82% 0%, rgba(255, 122, 47, 0.13), transparent 30%), radial-gradient(circle at 12% 34%, rgba(242, 193, 78, 0.06), transparent 26%), var(--home-bg);
   color: #f8fafc;
   text-align: left;
 }
+
+/* Street Fighter 6-inspired color roles: Drive green, Super gold, and dark warm surfaces. */
+.home-page .home-header { background: rgba(11, 8, 6, .91); }
+.home-page .home-brand > span:last-child span,
+.home-page .eyebrow,
+.home-page .section-heading button span,
+.home-page .feature-copy button span,
+.home-page .explore-meta button b,
+.home-page .profile-section-title button span { color: var(--sf-gold); }
+.home-page .brand-mark { background: linear-gradient(135deg, var(--sf-drive-strong), var(--sf-gold)); color: #130b06; box-shadow: 0 8px 24px rgba(255, 122, 47, .2); }
+.home-page .home-nav a:hover,
+.home-page .home-nav a.active { color: var(--sf-drive); }
+.home-page .home-nav a.active::after { background: linear-gradient(90deg, var(--sf-drive), var(--sf-gold)); }
+.home-page .create-button,
+.home-page .publish-button,
+.home-page .follow-button { background: linear-gradient(100deg, var(--sf-drive-strong), var(--sf-drive)); color: #160a04; box-shadow: 0 10px 25px rgba(233, 75, 33, .22); }
+.home-page .create-button:hover,
+.home-page .publish-button:hover,
+.home-page .follow-button:hover { box-shadow: 0 12px 28px rgba(233, 75, 33, .31); }
+.home-page .header-login,
+.home-page .feature-copy button { border-color: rgba(242, 193, 78, .28); background: rgba(242, 193, 78, .08); }
+.home-page .icon-button,
+.home-page .combo-top button.liked,
+.home-page .explore-card-top button.saved { color: var(--sf-gold); }
+.home-page .feature-card,
+.home-page .stats-grid article,
+.home-page .combo-card,
+.home-page .filter-panel,
+.home-page .explore-card,
+.home-page .my-library-panel,
+.home-page .mini-stats article,
+.home-page .form-panel,
+.home-page .publish-panel,
+.home-page .profile-hero,
+.home-page .profile-combo,
+.home-page .side-card { background: linear-gradient(145deg, var(--sf-surface-raised), var(--sf-surface)); }
+.home-page .combo-inputs,
+.home-page .explore-notation,
+.home-page .search-box,
+.home-page .filter-panel select,
+.home-page .combo-form input,
+.home-page .combo-form select,
+.home-page .combo-form textarea { background: #0d0906; }
+.home-page .combo-card:hover,
+.home-page .explore-card:hover { border-color: rgba(255, 122, 47, .42); }
+.home-page .filter-panel select:focus-visible,
+.home-page .sidebar-search:focus-within,
+.home-page .combo-form input:focus,
+.home-page .combo-form select:focus,
+.home-page .combo-form textarea:focus { border-color: rgba(255, 122, 47, .68); box-shadow: 0 0 0 3px rgba(255, 122, 47, .1); }
+.home-page .filter-toggle:hover,
+.home-page .filter-toggle:focus-visible,
+.home-page .filter-toggle.active-filter,
+.home-page .library-tabs button.active { border-color: rgba(255, 122, 47, .46); background: rgba(255, 122, 47, .1); color: var(--sf-drive); }
+.home-page .difficulty-line i.advanced,
+.home-page .difficulty-line i.expert,
+.home-page .my-combo-info i.draft { color: var(--sf-gold); background: rgba(242, 193, 78, .09); }
+.home-page .stat-icon.orange { color: var(--sf-gold); background: rgba(242, 193, 78, .11); }
+.home-page .stat-icon.blue,
+.home-page .stat-icon.purple { color: var(--sf-drive); background: rgba(255, 122, 47, .1); }
 
 .home-page * { box-sizing: border-box; }
 .home-page button, .home-page a { font: inherit; }
@@ -36,6 +101,7 @@
 .home-nav a.active::after { content: ''; position: absolute; bottom: 0; width: 28px; height: 3px; border-radius: 4px 4px 0 0; background: #ff5538; }
 .home-user { justify-self: end; display: flex; gap: 12px; }
 .icon-button, .avatar { width: 38px; height: 38px; border-radius: 50%; cursor: pointer; }
+.header-login { min-height: 36px; padding: 0 14px; border: 1px solid rgba(255,255,255,.12); background: #11151e; color: #eef1f5; font: inherit; font-size: .66rem; font-weight: 800; cursor: pointer; }
 .icon-button { border: 1px solid var(--home-border); background: #111521; color: #ff5538; font-size: .65rem; }
 .avatar { border: 2px solid #283246; background: linear-gradient(145deg, #1d76a5, #9bd9ef); color: #07111a; font-weight: 900; }
 

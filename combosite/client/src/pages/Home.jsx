@@ -3,6 +3,7 @@ import sf6Art from '../assets/sf6-optimized.jpg';
 import '../styles/Home.css';
 import { getCombos, getExploreCombos, toggleComboLike } from '../lib/api.js';
 import { getCharacterImage } from '../lib/characterImages.js';
+import SkeletonLoader from '../components/SkeletonLoader.jsx';
 
 const fighterColor = (fighter) => {
   if (['Ken', 'Marisa', 'Dhalsim'].includes(fighter)) return 'orange';
@@ -15,6 +16,7 @@ function Home({ navigate, user }) {
   const [publishedCombos, setPublishedCombos] = useState([]);
   const [myCombos, setMyCombos] = useState([]);
   const [comboError, setComboError] = useState('');
+  const [loading, setLoading] = useState(true);
   const trendingCombos = useMemo(
     () => [...publishedCombos].sort((a, b) => b.likes - a.likes || new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 3),
     [publishedCombos],
@@ -22,18 +24,23 @@ function Home({ navigate, user }) {
 
   useEffect(() => {
     let active = true;
-    Promise.all([getExploreCombos(), getCombos()])
+    Promise.all([getExploreCombos(), user ? getCombos() : Promise.resolve([])])
       .then(([community, personal]) => {
         if (active) {
           setPublishedCombos(community);
           setMyCombos(personal);
         }
       })
-      .catch((problem) => { if (active) setComboError(problem.message); });
+      .catch((problem) => { if (active) setComboError(problem.message); })
+      .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, []);
+  }, [user]);
 
   const toggleLiked = async (comboId) => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
     setComboError('');
     try {
       const result = await toggleComboLike(comboId);
@@ -67,17 +74,21 @@ function Home({ navigate, user }) {
         </nav>
 
         <div className="home-user">
-          <button className="icon-button" aria-label="Notifications">●</button>
-          <button className="avatar" aria-label="Open profile" onClick={() => navigate('/profile')}>{user.name.charAt(0).toUpperCase()}</button>
+          {user ? (
+            <>
+              <button className="icon-button" aria-label="Notifications">●</button>
+              <button className="avatar" aria-label="Open profile" onClick={() => navigate('/profile')}>{user.name.charAt(0).toUpperCase()}</button>
+            </>
+          ) : <button className="header-login" type="button" onClick={() => navigate('/login')}>Sign in</button>}
         </div>
       </header>
 
       <main className="home-main">
         <section className="welcome-row">
           <div>
-            <h1>Welcome back, {user.name.split(' ')[0]}.</h1>
+            <h1>{user ? `Welcome back, ${user.name.split(' ')[0]}.` : 'Welcome to HadouKraft.'}</h1>
           </div>
-          <button className="create-button" onClick={() => navigate('/create')}><span>＋</span> Create Combo</button>
+          <button className="create-button" onClick={() => navigate(user ? '/create' : '/login')}><span>＋</span> {user ? 'Create Combo' : 'Sign in to create'}</button>
         </section>
 
         <section className="feature-card">
@@ -88,17 +99,13 @@ function Home({ navigate, user }) {
             <p>Explore community-tested routes, matchup tech, and creative conversions for every fighter.</p>
             <button onClick={() => navigate('/combos')}>Explore Combos <span>→</span></button>
           </div>
-          <div className="feature-stat">
-            <strong>{publishedCombos.length.toLocaleString()}</strong>
-            <span>COMBOS SHARED</span>
-          </div>
         </section>
 
-        <section className="stats-grid" aria-label="Your statistics">
+        {user && <section className="stats-grid" aria-label="Your statistics">
           <article><span className="stat-icon orange">✦</span><div><strong>{myCombos.length}</strong><span>Combos created</span></div></article>
           <article><span className="stat-icon blue">♥</span><div><strong>{totalLikes}</strong><span>Likes received</span></div></article>
           <article><span className="stat-icon purple">◉</span><div><strong>{totalViews}</strong><span>Total views</span></div></article>
-        </section>
+        </section>}
 
         <section className="combo-section">
           <div className="section-heading">
@@ -107,7 +114,8 @@ function Home({ navigate, user }) {
           </div>
 
           {comboError && <p className="home-combo-message error" role="alert">{comboError}</p>}
-          <div className="combo-grid">
+          {loading && <SkeletonLoader variant="card" count={3} />}
+          {!loading && <div className="combo-grid">
             {trendingCombos.map((combo) => (
               <article className="combo-card" key={combo.id}>
                 <div className="combo-top">
@@ -115,7 +123,7 @@ function Home({ navigate, user }) {
                     <img src={getCharacterImage(combo.character)} alt={combo.character} loading="lazy" decoding="async" width="160" height="160" />
                   </div>
                   <div><strong>{combo.character}</strong><span>by {combo.creator}</span></div>
-                  <button className={combo.liked ? 'liked' : ''} onClick={() => toggleLiked(combo.id)} aria-label={`${combo.liked ? 'Unlike' : 'Like'} ${combo.title}`}>{combo.liked ? '♥' : '♡'}</button>
+                  <button className={combo.liked ? 'liked' : ''} onClick={() => toggleLiked(combo.id)} aria-label={user ? `${combo.liked ? 'Unlike' : 'Like'} ${combo.title}` : 'Sign in to like this combo'}>{combo.liked ? '♥' : '♡'}</button>
                 </div>
                 <h3>{combo.title}</h3>
                 <div className="combo-inputs">{combo.notation}</div>
@@ -126,8 +134,8 @@ function Home({ navigate, user }) {
                 </div>
               </article>
             ))}
-          </div>
-          {!comboError && trendingCombos.length === 0 && (
+          </div>}
+          {!loading && !comboError && trendingCombos.length === 0 && (
             <div className="home-combo-message"><strong>No published combos yet</strong><p>Publish a public combo to feature it here.</p></div>
           )}
         </section>

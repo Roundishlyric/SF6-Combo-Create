@@ -1,5 +1,5 @@
 import { createServer } from 'node:http';
-import { randomBytes, randomUUID, scrypt as scryptCallback, timingSafeEqual } from 'node:crypto';
+import { createHash, randomBytes, randomUUID, scrypt as scryptCallback, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
 import { createReadStream, createWriteStream } from 'node:fs';
 import { mkdir, stat, unlink } from 'node:fs/promises';
@@ -14,13 +14,18 @@ const port = Number(process.env.PORT || 3001);
 const serverDirectory = dirname(fileURLToPath(import.meta.url));
 const uploadsDirectory = join(serverDirectory, 'uploads');
 const videoTypes = { 'video/mp4': '.mp4', 'video/webm': '.webm', 'video/quicktime': '.mov' };
+const sessionTtlDays = Math.max(1, Math.min(90, Number(process.env.SESSION_TTL_DAYS) || 7));
+const sessionTtlMs = sessionTtlDays * 24 * 60 * 60 * 1000;
+const trustProxy = process.env.TRUST_PROXY === 'true';
 
-const send = (response, status, body) => {
+const send = (response, status, body, extraHeaders = {}) => {
   response.writeHead(status, {
     'Content-Type': 'application/json; charset=utf-8',
     'Access-Control-Allow-Origin': 'http://localhost:5173',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Access-Control-Expose-Headers': 'Retry-After',
+    ...extraHeaders,
   });
   response.end(JSON.stringify(body));
 };
@@ -50,6 +55,60 @@ const passwordMatches = async (password, user) => {
 
 const publicUser = ({ id, name, email, createdAt }) => ({ id, name, email, createdAt });
 
+const createSession = async (sessions, userId) => {
+  const token = randomBytes(32).toString('hex');
+  const createdAt = new Date();
+  const expiresAt = new Date(createdAt.getTime() + sessionTtlMs);
+  await sessions.insertOne({ token, userId, createdAt, expiresAt });
+  return { token, expiresAt };
+};
+
+const rateLimitKey = (request, scope, discriminator = '') => {
+  const forwardedAddress = String(request.headers['x-forwarded-for'] || '').split(',')[0].trim();
+  const address = (trustProxy && forwardedAddress) || request.socket.remoteAddress || 'unknown';
+  return createHash('sha256').update(`${scope}|${address}|${discriminator}`).digest('hex');
+};
+
+const consumeRateLimit = async (request, scope, limit, windowMs, discriminator = '') => {
+  const { rateLimits } = await collections();
+  const key = rateLimitKey(request, scope, discriminator);
+  const now = new Date();
+  const nextReset = new Date(now.getTime() + windowMs);
+  const entry = await rateLimits.findOneAndUpdate(
+    { key },
+    [{
+      $set: {
+        count: {
+          $cond: [
+            { $gt: [{ $ifNull: ['$resetAt', new Date(0)] }, now] },
+            { $add: [{ $ifNull: ['$count', 0] }, 1] },
+            1,
+          ],
+        },
+        resetAt: {
+          $cond: [
+            { $gt: [{ $ifNull: ['$resetAt', new Date(0)] }, now] },
+            '$resetAt',
+            nextReset,
+          ],
+        },
+      },
+    }],
+    { upsert: true, returnDocument: 'after' },
+  );
+  return {
+    blocked: entry.count > limit,
+    retryAfter: Math.max(1, Math.ceil((entry.resetAt.getTime() - now.getTime()) / 1000)),
+  };
+};
+
+const rejectRateLimit = (response, result) => send(
+  response,
+  429,
+  { error: 'Too many attempts. Please try again later.' },
+  { 'Retry-After': String(result.retryAfter) },
+);
+
 const authenticate = async (request) => {
   const header = request.headers.authorization || '';
   const token = header.startsWith('Bearer ') ? header.slice(7) : '';
@@ -57,6 +116,11 @@ const authenticate = async (request) => {
   const { sessions, users } = await collections();
   const session = await sessions.findOne({ token });
   if (!session) return null;
+  const expiresAt = new Date(session.expiresAt).getTime();
+  if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
+    await sessions.deleteOne({ token });
+    return null;
+  }
   const user = await users.findOne({ id: session.userId });
   return user ? { user, token } : null;
 };
@@ -116,6 +180,8 @@ const server = createServer(async (request, response) => {
 
     if (request.method === 'POST' && path === '/api/auth/register') {
       const body = await readBody(request);
+      const registrationLimit = await consumeRateLimit(request, 'register', 5, 60 * 60 * 1000);
+      if (registrationLimit.blocked) return rejectRateLimit(response, registrationLimit);
       const name = String(body.name || '').trim();
       const email = String(body.email || '').trim().toLowerCase();
       const password = String(body.password || '');
@@ -124,29 +190,36 @@ const server = createServer(async (request, response) => {
       const { users, sessions } = await collections();
       const passwordData = await hashPassword(password);
       const user = { id: randomUUID(), name, email, passwordHash: passwordData.hash, passwordSalt: passwordData.salt, createdAt: new Date().toISOString() };
-      const token = randomBytes(32).toString('hex');
       try {
         await users.insertOne(user);
       } catch (error) {
         if (error.code === 11000) return send(response, 409, { error: 'An account with this email already exists.' });
         throw error;
       }
-      await sessions.insertOne({ token, userId: user.id, createdAt: new Date().toISOString() });
-      return send(response, 201, { user: publicUser(user), token });
+      const session = await createSession(sessions, user.id);
+      return send(response, 201, { user: publicUser(user), ...session });
     }
 
     if (request.method === 'POST' && path === '/api/auth/login') {
       const body = await readBody(request);
+      const email = String(body.email || '').trim().toLowerCase();
+      const [addressLimit, accountLimit] = await Promise.all([
+        consumeRateLimit(request, 'login-address', 10, 15 * 60 * 1000),
+        consumeRateLimit(request, 'login-account', 5, 15 * 60 * 1000, email),
+      ]);
+      if (addressLimit.blocked || accountLimit.blocked) {
+        return rejectRateLimit(response, addressLimit.blocked ? addressLimit : accountLimit);
+      }
       const { users, sessions } = await collections();
-      const user = await users.findOne({ email: String(body.email || '').trim().toLowerCase() });
+      const user = await users.findOne({ email });
       if (!user || !(await passwordMatches(String(body.password || ''), user))) return send(response, 401, { error: 'Incorrect email or password.' });
-      const token = randomBytes(32).toString('hex');
-      await sessions.insertOne({ token, userId: user.id, createdAt: new Date().toISOString() });
-      return send(response, 200, { user: publicUser(user), token });
+      const session = await createSession(sessions, user.id);
+      return send(response, 200, { user: publicUser(user), ...session });
     }
 
     const auth = await authenticate(request);
-    if (!auth) return send(response, 401, { error: 'Authentication required.' });
+    const isPublicExplore = request.method === 'GET' && path === '/api/explore';
+    if (!auth && !isPublicExplore) return send(response, 401, { error: 'Authentication required.' });
     const database = await collections();
 
     if (request.method === 'GET' && path === '/api/auth/me') return send(response, 200, { user: publicUser(auth.user) });
@@ -193,10 +266,12 @@ const server = createServer(async (request, response) => {
           { $match: { comboId: { $in: comboIds } } },
           { $group: { _id: '$comboId', count: { $sum: 1 } } },
         ]).toArray(),
-        database.likes.find(
-          { userId: auth.user.id, comboId: { $in: comboIds } },
-          { projection: { _id: 0, comboId: 1 } },
-        ).toArray(),
+        auth
+          ? database.likes.find(
+            { userId: auth.user.id, comboId: { $in: comboIds } },
+            { projection: { _id: 0, comboId: 1 } },
+          ).toArray()
+          : Promise.resolve([]),
       ]);
       const creatorNames = new Map(creators.map((creator) => [creator.id, creator.name]));
       const counts = new Map(likeCounts.map((entry) => [entry._id, entry.count]));

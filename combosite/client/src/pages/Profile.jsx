@@ -3,6 +3,7 @@ import '../styles/Home.css';
 import '../styles/Profile.css';
 import { getCombos } from '../lib/api.js';
 import { getCharacterImage } from '../lib/characterImages.js';
+import SkeletonLoader from '../components/SkeletonLoader.jsx';
 
 const fighterColor = (fighter) => {
   if (['Ken', 'Marisa', 'Dhalsim'].includes(fighter)) return 'orange';
@@ -14,6 +15,7 @@ const fighterColor = (fighter) => {
 function Profile({ navigate, user, onLogout }) {
   const [combos, setCombos] = useState([]);
   const [loadError, setLoadError] = useState('');
+  const [loading, setLoading] = useState(true);
   const recentCombos = useMemo(
     () => [...combos].sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)).slice(0, 3),
     [combos],
@@ -23,7 +25,8 @@ function Profile({ navigate, user, onLogout }) {
     let active = true;
     getCombos()
       .then((result) => { if (active) setCombos(result); })
-      .catch((problem) => { if (active) setLoadError(problem.message); });
+      .catch((problem) => { if (active) setLoadError(problem.message); })
+      .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, []);
 
@@ -86,8 +89,9 @@ function Profile({ navigate, user, onLogout }) {
               <button type="button" onClick={() => navigate('/create')}>Create combo <span>＋</span></button>
             </div>
             {loadError && <p className="profile-message error" role="alert">{loadError}</p>}
+            {loading && <SkeletonLoader variant="row" count={3} />}
             <div className="profile-combo-list">
-              {recentCombos.map((combo) => (
+              {!loading && recentCombos.map((combo) => (
                 <article className="profile-combo" key={combo.id}>
                   <div className={`fighter-avatar ${fighterColor(combo.character)}`}>
                     <img src={getCharacterImage(combo.character)} alt={combo.character} loading="lazy" decoding="async" width="160" height="160" />
@@ -105,7 +109,7 @@ function Profile({ navigate, user, onLogout }) {
                 </article>
               ))}
             </div>
-            {!loadError && recentCombos.length === 0 && (
+            {!loading && !loadError && recentCombos.length === 0 && (
               <div className="profile-message"><strong>No combos yet</strong><p>Create your first combo to see it here.</p></div>
             )}
             {combos.length > 0 && (

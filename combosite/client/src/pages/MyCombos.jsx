@@ -4,6 +4,7 @@ import '../styles/Home.css';
 import '../styles/Library.css';
 import { deleteCombo, duplicateCombo, getCombos } from '../lib/api.js';
 import { getCharacterImage } from '../lib/characterImages.js';
+import SkeletonLoader from '../components/SkeletonLoader.jsx';
 
 const fighterColor = (fighter) => {
   if (['Ken', 'Marisa', 'Dhalsim'].includes(fighter)) return 'orange';
@@ -89,9 +90,9 @@ function MyCombos({ navigate, user }) {
             <label className="search-box small"><span>⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search your combos..." /></label>
           </div>
           <div className="my-combo-list">
-            {loading && <p className="library-message">Loading your combos…</p>}
+            {loading && <SkeletonLoader variant="row" count={5} />}
             {loadError && <p className="library-message error" role="alert">{loadError}</p>}
-            {combos.map((combo) => (
+            {!loading && combos.map((combo) => (
               <article className="my-combo-row" key={combo.id}>
                 <div className={`fighter-avatar ${fighterColor(combo.character)}`}>
                   <img src={getCharacterImage(combo.character)} alt={combo.character} loading="lazy" decoding="async" width="160" height="160" />

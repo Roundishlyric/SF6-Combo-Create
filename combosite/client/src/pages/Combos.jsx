@@ -4,6 +4,7 @@ import '../styles/Library.css';
 import sf6Art from '../assets/sf6-optimized.jpg';
 import { getExploreCombos, toggleComboLike } from '../lib/api.js';
 import { getCharacterImage } from '../lib/characterImages.js';
+import SkeletonLoader from '../components/SkeletonLoader.jsx';
 
 const fighterColor = (fighter) => {
   if (['Ken', 'Marisa', 'Dhalsim'].includes(fighter)) return 'orange';
@@ -160,12 +161,12 @@ function Combos({ navigate, user }) {
               <div><h1>Explore combos</h1></div>
             </section>
             <div className="results-row">
-              <p><strong>{results.length}</strong> combos found</p>
+              <p><strong>{loading ? '—' : results.length}</strong> combos found</p>
             </div>
-            {loading && <p className="library-message">Loading published combos…</p>}
+            {loading && <SkeletonLoader variant="explore" count={3} />}
             {loadError && <p className="library-message error" role="alert">{loadError}</p>}
             {likeError && <p className="library-message error" role="alert">{likeError}</p>}
-            <section className="explore-grid">
+            {!loading && <section className="explore-grid">
               {results.map((combo) => (
                 <article className="explore-card" key={combo.id}>
                   <div className="explore-card-top">
@@ -193,7 +194,7 @@ function Combos({ navigate, user }) {
                   </div>
                 </article>
               ))}
-            </section>
+            </section>}
             {!loading && !loadError && results.length === 0 && (
               <div className="empty-results">
                 <strong>{likedOnly ? 'No liked combos yet' : 'No published combos found'}</strong>

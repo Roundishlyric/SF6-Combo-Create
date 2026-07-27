@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { getSession, loginUser, logoutUser, registerUser } from './lib/api.js';
+import SkeletonLoader from './components/SkeletonLoader.jsx';
 
 const Login = lazy(() => import('./pages/Login.jsx'));
 const Register = lazy(() => import('./pages/Register.jsx'));
@@ -46,12 +47,12 @@ function App() {
 
   if (path === '/register') {
     page = user ? <Home navigate={navigate} user={user} /> : <Register navigate={navigate} onRegister={register} />;
-  } else if (path === '/' || path === '/login') {
+  } else if (path === '/login') {
     page = user ? <Home navigate={navigate} user={user} /> : <Login navigate={navigate} onLogin={login} />;
+  } else if (path === '/' || path === '/home') {
+    page = <Home navigate={navigate} user={user} />;
   } else if (!user) {
     page = <Login navigate={navigate} onLogin={login} />;
-  } else if (path === '/home') {
-    page = <Home navigate={navigate} user={user} />;
   } else if (path === '/create') {
     page = <Create navigate={navigate} user={user} />;
   } else if (path === '/combos') {
@@ -64,7 +65,7 @@ function App() {
     page = <Home navigate={navigate} user={user} />;
   }
 
-  return <Suspense fallback={<div className="route-loading" role="status">Loading…</div>}>{page}</Suspense>;
+  return <Suspense fallback={<div className="route-loading"><SkeletonLoader variant="card" count={3} /></div>}>{page}</Suspense>;
 }
 
 export default App;

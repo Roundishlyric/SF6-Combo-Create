@@ -3,7 +3,13 @@ const SESSION_KEY = 'hadoukraft.api-session';
 const storedSession = () => {
   try {
     const value = window.sessionStorage.getItem(SESSION_KEY) || window.localStorage.getItem(SESSION_KEY);
-    return value ? JSON.parse(value) : null;
+    const session = value ? JSON.parse(value) : null;
+    if (session && (!session.expiresAt || new Date(session.expiresAt).getTime() <= Date.now())) {
+      window.localStorage.removeItem(SESSION_KEY);
+      window.sessionStorage.removeItem(SESSION_KEY);
+      return null;
+    }
+    return session;
   } catch {
     return null;
   }
@@ -24,8 +30,8 @@ const request = async (path, options = {}) => {
   return body;
 };
 
-const storeSession = ({ user, token }, remember = false) => {
-  const session = { ...user, token };
+const storeSession = ({ user, token, expiresAt }, remember = false) => {
+  const session = { ...user, token, expiresAt };
   window.localStorage.removeItem(SESSION_KEY);
   window.sessionStorage.removeItem(SESSION_KEY);
   const storage = remember ? window.localStorage : window.sessionStorage;

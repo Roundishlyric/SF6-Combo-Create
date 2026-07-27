@@ -1,12 +1,12 @@
 :root {
-  --bg: #06070d;
-  --panel: rgba(12, 16, 29, 0.95);
-  --panel-2: rgba(24, 30, 49, 0.95);
+  --bg: #0b0806;
+  --panel: rgba(19, 11, 6, 0.96);
+  --panel-2: rgba(26, 14, 8, 0.96);
   --text: #fef7ed;
   --muted: #c8d0de;
-  --accent: #ff4d2e;
-  --accent-2: #2bc4ff;
-  --accent-3: #ffb347;
+  --accent: #e94b21;
+  --accent-2: #ff7a2f;
+  --accent-3: #f2c14e;
   --border: rgba(255, 255, 255, 0.12);
 }
 
@@ -232,10 +232,10 @@
 }
 
 .remember-control input:checked + .remember-box {
-  border-color: #ff6743;
-  background: linear-gradient(135deg, #ff4d2e, #ff9f3f);
-  color: white;
-  box-shadow: 0 4px 12px rgba(255, 85, 48, 0.28);
+  border-color: #ff7a2f;
+  background: linear-gradient(135deg, #e94b21, #ff7a2f);
+  color: #160a04;
+  box-shadow: 0 4px 12px rgba(233, 75, 33, .26);
 }
 
 .remember-control input:focus-visible + .remember-box {
@@ -255,8 +255,8 @@
   font-weight: 700;
   cursor: pointer;
   background: linear-gradient(90deg, var(--accent), var(--accent-3));
-  color: white;
-  box-shadow: 0 12px 24px rgba(255, 77, 46, 0.22);
+  color: #101307;
+  box-shadow: 0 12px 24px rgba(233, 75, 33, .24);
 }
 
 .login-link-row,
@@ -321,4 +321,9 @@
     padding: 1.5rem;
   }
 }
+
+/* Warm SF6 menu surfaces with Drive and Super meter accents. */
+.login-page { background: radial-gradient(circle at top left, #2a1b12 0%, #130b06 46%, #080604 100%); }
+.login-hero { background: linear-gradient(135deg, rgba(255, 122, 47, .2), rgba(242, 193, 78, .12)); }
+.login-hero--image::after { background: linear-gradient(180deg, rgba(11, 8, 6, .84) 0%, rgba(19, 11, 6, .34) 48%, rgba(11, 8, 6, .68) 100%), linear-gradient(90deg, rgba(233, 75, 33, .17), transparent 75%); }
 .auth-error { margin-top: 12px; color: #ff664d; font-size: .72rem; text-align: center; }
