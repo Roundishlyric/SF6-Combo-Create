@@ -51,12 +51,12 @@ function App() {
     page = user ? <Home navigate={navigate} user={user} /> : <Login navigate={navigate} onLogin={login} />;
   } else if (path === '/' || path === '/home') {
     page = <Home navigate={navigate} user={user} />;
+  } else if (path === '/combos') {
+    page = <Combos navigate={navigate} user={user} />;
   } else if (!user) {
     page = <Login navigate={navigate} onLogin={login} />;
   } else if (path === '/create') {
     page = <Create navigate={navigate} user={user} />;
-  } else if (path === '/combos') {
-    page = <Combos navigate={navigate} user={user} />;
   } else if (path === '/my-combos') {
     page = <MyCombos navigate={navigate} user={user} />;
   } else if (path === '/profile') {

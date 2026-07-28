@@ -7,7 +7,7 @@ import { dirname, extname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
-import { closeDatabase, collections, connectDatabase } from './db.js';
+import { closeDatabase, connectDatabase, query, transaction } from './db.js';
 
 const scrypt = promisify(scryptCallback);
 const port = Number(process.env.PORT || 3001);
@@ -55,11 +55,11 @@ const passwordMatches = async (password, user) => {
 
 const publicUser = ({ id, name, email, createdAt }) => ({ id, name, email, createdAt });
 
-const createSession = async (sessions, userId) => {
+const createSession = async (userId) => {
   const token = randomBytes(32).toString('hex');
   const createdAt = new Date();
   const expiresAt = new Date(createdAt.getTime() + sessionTtlMs);
-  await sessions.insertOne({ token, userId, createdAt, expiresAt });
+  await query('INSERT INTO sessions (token, user_id, created_at, expires_at) VALUES ($1, $2, $3, $4)', [token, userId, createdAt, expiresAt]);
   return { token, expiresAt };
 };
 
@@ -70,32 +70,12 @@ const rateLimitKey = (request, scope, discriminator = '') => {
 };
 
 const consumeRateLimit = async (request, scope, limit, windowMs, discriminator = '') => {
-  const { rateLimits } = await collections();
   const key = rateLimitKey(request, scope, discriminator);
   const now = new Date();
   const nextReset = new Date(now.getTime() + windowMs);
-  const entry = await rateLimits.findOneAndUpdate(
-    { key },
-    [{
-      $set: {
-        count: {
-          $cond: [
-            { $gt: [{ $ifNull: ['$resetAt', new Date(0)] }, now] },
-            { $add: [{ $ifNull: ['$count', 0] }, 1] },
-            1,
-          ],
-        },
-        resetAt: {
-          $cond: [
-            { $gt: [{ $ifNull: ['$resetAt', new Date(0)] }, now] },
-            '$resetAt',
-            nextReset,
-          ],
-        },
-      },
-    }],
-    { upsert: true, returnDocument: 'after' },
-  );
+  const { rows: [entry] } = await query(`INSERT INTO rate_limits (key, count, reset_at) VALUES ($1, 1, $2)
+    ON CONFLICT (key) DO UPDATE SET count = CASE WHEN rate_limits.reset_at > $3 THEN rate_limits.count + 1 ELSE 1 END,
+    reset_at = CASE WHEN rate_limits.reset_at > $3 THEN rate_limits.reset_at ELSE $2 END RETURNING count, reset_at AS "resetAt"`, [key, nextReset, now]);
   return {
     blocked: entry.count > limit,
     retryAfter: Math.max(1, Math.ceil((entry.resetAt.getTime() - now.getTime()) / 1000)),
@@ -113,16 +93,16 @@ const authenticate = async (request) => {
   const header = request.headers.authorization || '';
   const token = header.startsWith('Bearer ') ? header.slice(7) : '';
   if (!token) return null;
-  const { sessions, users } = await collections();
-  const session = await sessions.findOne({ token });
+  const { rows: [session] } = await query(`SELECT s.user_id AS "userId", s.expires_at AS "expiresAt", u.id, u.name, u.email,
+    u.password_hash AS "passwordHash", u.password_salt AS "passwordSalt", u.created_at AS "createdAt"
+    FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token=$1`, [token]);
   if (!session) return null;
   const expiresAt = new Date(session.expiresAt).getTime();
   if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
-    await sessions.deleteOne({ token });
+    await query('DELETE FROM sessions WHERE token=$1', [token]);
     return null;
   }
-  const user = await users.findOne({ id: session.userId });
-  return user ? { user, token } : null;
+  return { user: session, token };
 };
 
 const validateCombo = (body) => {
@@ -187,16 +167,15 @@ const server = createServer(async (request, response) => {
       const password = String(body.password || '');
       if (!name || !email || password.length < 6) return send(response, 400, { error: 'Name, email, and a password of at least 6 characters are required.' });
 
-      const { users, sessions } = await collections();
       const passwordData = await hashPassword(password);
       const user = { id: randomUUID(), name, email, passwordHash: passwordData.hash, passwordSalt: passwordData.salt, createdAt: new Date().toISOString() };
       try {
-        await users.insertOne(user);
+        await query('INSERT INTO users (id,name,email,password_hash,password_salt,created_at) VALUES ($1,$2,$3,$4,$5,$6)', [user.id,user.name,user.email,user.passwordHash,user.passwordSalt,user.createdAt]);
       } catch (error) {
-        if (error.code === 11000) return send(response, 409, { error: 'An account with this email already exists.' });
+        if (error.code === '23505') return send(response, 409, { error: 'An account with this email already exists.' });
         throw error;
       }
-      const session = await createSession(sessions, user.id);
+      const session = await createSession(user.id);
       return send(response, 201, { user: publicUser(user), ...session });
     }
 
@@ -210,21 +189,19 @@ const server = createServer(async (request, response) => {
       if (addressLimit.blocked || accountLimit.blocked) {
         return rejectRateLimit(response, addressLimit.blocked ? addressLimit : accountLimit);
       }
-      const { users, sessions } = await collections();
-      const user = await users.findOne({ email });
+      const { rows: [user] } = await query('SELECT id,name,email,password_hash AS "passwordHash",password_salt AS "passwordSalt",created_at AS "createdAt" FROM users WHERE email=$1', [email]);
       if (!user || !(await passwordMatches(String(body.password || ''), user))) return send(response, 401, { error: 'Incorrect email or password.' });
-      const session = await createSession(sessions, user.id);
+      const session = await createSession(user.id);
       return send(response, 200, { user: publicUser(user), ...session });
     }
 
     const auth = await authenticate(request);
     const isPublicExplore = request.method === 'GET' && path === '/api/explore';
     if (!auth && !isPublicExplore) return send(response, 401, { error: 'Authentication required.' });
-    const database = await collections();
 
     if (request.method === 'GET' && path === '/api/auth/me') return send(response, 200, { user: publicUser(auth.user) });
     if (request.method === 'POST' && path === '/api/auth/logout') {
-      await database.sessions.deleteOne({ token: auth.token });
+      await query('DELETE FROM sessions WHERE token=$1', [auth.token]);
       return send(response, 200, { message: 'Logged out.' });
     }
     if (request.method === 'POST' && path === '/api/videos') {
@@ -250,48 +227,24 @@ const server = createServer(async (request, response) => {
       return send(response, 201, { video: { url: `/uploads/${fileName}`, name: decodeURIComponent(String(request.headers['x-file-name'] || 'combo-video')), size: bytes, type: contentType } });
     }
     if (request.method === 'GET' && path === '/api/combos') {
-      const combos = await database.combos.find({ userId: auth.user.id }, { projection: { _id: 0 } }).sort({ updatedAt: -1 }).toArray();
-      return send(response, 200, { combos });
+      const { rows: combos } = await query(`SELECT data || jsonb_build_object('id',id,'userId',user_id,'createdAt',created_at,'updatedAt',updated_at) AS combo FROM combos WHERE user_id=$1 ORDER BY updated_at DESC`, [auth.user.id]);
+      return send(response, 200, { combos: combos.map((row) => row.combo) });
     }
     if (request.method === 'GET' && path === '/api/explore') {
-      const combos = await database.combos
-        .find({ status: 'Published', visibility: 'Public' }, { projection: { _id: 0 } })
-        .sort({ createdAt: -1 })
-        .toArray();
-      const userIds = [...new Set(combos.map((combo) => combo.userId))];
-      const comboIds = combos.map((combo) => combo.id);
-      const [creators, likeCounts, userLikes] = await Promise.all([
-        database.users.find({ id: { $in: userIds } }, { projection: { _id: 0, id: 1, name: 1 } }).toArray(),
-        database.likes.aggregate([
-          { $match: { comboId: { $in: comboIds } } },
-          { $group: { _id: '$comboId', count: { $sum: 1 } } },
-        ]).toArray(),
-        auth
-          ? database.likes.find(
-            { userId: auth.user.id, comboId: { $in: comboIds } },
-            { projection: { _id: 0, comboId: 1 } },
-          ).toArray()
-          : Promise.resolve([]),
-      ]);
-      const creatorNames = new Map(creators.map((creator) => [creator.id, creator.name]));
-      const counts = new Map(likeCounts.map((entry) => [entry._id, entry.count]));
-      const likedIds = new Set(userLikes.map((entry) => entry.comboId));
-      return send(response, 200, {
-        combos: combos.map((combo) => ({
-          ...combo,
-          creator: creatorNames.get(combo.userId) || 'Unknown player',
-          likes: counts.get(combo.id) || 0,
-          liked: likedIds.has(combo.id),
-        })),
-      });
+      const { rows } = await query(`SELECT c.data || jsonb_build_object('id',c.id,'userId',c.user_id,'createdAt',c.created_at,'updatedAt',c.updated_at,
+        'creator',u.name,'likes',count(l.user_id),'liked',coalesce(bool_or(l.user_id=$1),false)) AS combo
+        FROM combos c JOIN users u ON u.id=c.user_id LEFT JOIN likes l ON l.combo_id=c.id
+        WHERE c.data->>'status'='Published' AND c.data->>'visibility'='Public'
+        GROUP BY c.id,u.name ORDER BY c.created_at DESC`, [auth?.user.id || '']);
+      return send(response, 200, { combos: rows.map((row) => row.combo) });
     }
     if (request.method === 'POST' && path === '/api/combos') {
       const body = await readBody(request);
       validateCombo(body);
       const now = new Date().toISOString();
       const combo = { ...body, id: randomUUID(), userId: auth.user.id, game: 'Street Fighter 6', views: 0, saves: 0, createdAt: now, updatedAt: now };
-      await database.combos.insertOne(combo);
-      delete combo._id;
+      const { id, userId, createdAt, updatedAt, ...data } = combo;
+      await query('INSERT INTO combos (id,user_id,data,created_at,updated_at) VALUES ($1,$2,$3,$4,$5)', [id,userId,data,createdAt,updatedAt]);
       return send(response, 201, { combo });
     }
 
@@ -305,51 +258,41 @@ const server = createServer(async (request, response) => {
       delete protectedFields.createdAt;
       delete protectedFields.views;
       delete protectedFields.saves;
-      const result = await database.combos.findOneAndUpdate(
-        { id: comboMatch[1], userId: auth.user.id },
-        { $set: { ...protectedFields, game: 'Street Fighter 6', updatedAt: new Date().toISOString() } },
-        { returnDocument: 'after', projection: { _id: 0 } },
-      );
-      return result ? send(response, 200, { combo: result }) : send(response, 404, { error: 'Combo not found.' });
+      const updatedAt = new Date().toISOString();
+      const { rows: [result] } = await query(`UPDATE combos SET data=data || $1::jsonb, updated_at=$2 WHERE id=$3 AND user_id=$4
+        RETURNING data || jsonb_build_object('id',id,'userId',user_id,'createdAt',created_at,'updatedAt',updated_at) AS combo`,
+      [{ ...protectedFields, game: 'Street Fighter 6' }, updatedAt, comboMatch[1], auth.user.id]);
+      return result ? send(response, 200, { combo: result.combo }) : send(response, 404, { error: 'Combo not found.' });
     }
     if (comboMatch && request.method === 'DELETE') {
-      const result = await database.combos.deleteOne({ id: comboMatch[1], userId: auth.user.id });
-      if (!result.deletedCount) return send(response, 404, { error: 'Combo not found.' });
-      await database.likes.deleteMany({ comboId: comboMatch[1] });
+      const result = await query('DELETE FROM combos WHERE id=$1 AND user_id=$2', [comboMatch[1], auth.user.id]);
+      if (!result.rowCount) return send(response, 404, { error: 'Combo not found.' });
       return send(response, 200, { message: 'Combo deleted.' });
     }
 
     const likeMatch = path.match(/^\/api\/combos\/([^/]+)\/like$/);
     if (likeMatch && request.method === 'POST') {
-      const combo = await database.combos.findOne({
-        id: likeMatch[1],
-        status: 'Published',
-        visibility: 'Public',
-      });
+      const { rows: [combo] } = await query(`SELECT id FROM combos WHERE id=$1 AND data->>'status'='Published' AND data->>'visibility'='Public'`, [likeMatch[1]]);
       if (!combo) return send(response, 404, { error: 'Published combo not found.' });
-      const existing = await database.likes.findOne({ comboId: combo.id, userId: auth.user.id });
-      if (existing) {
-        await database.likes.deleteOne({ comboId: combo.id, userId: auth.user.id });
-      } else {
-        await database.likes.insertOne({
-          comboId: combo.id,
-          userId: auth.user.id,
-          createdAt: new Date().toISOString(),
-        });
-      }
-      const likes = await database.likes.countDocuments({ comboId: combo.id });
-      await database.combos.updateOne({ id: combo.id }, { $set: { saves: likes } });
-      return send(response, 200, { liked: !existing, likes });
+      const result = await transaction(async (client) => {
+        const existing = await client.query('DELETE FROM likes WHERE combo_id=$1 AND user_id=$2 RETURNING user_id', [combo.id, auth.user.id]);
+        if (!existing.rowCount) await client.query('INSERT INTO likes (combo_id,user_id,created_at) VALUES ($1,$2,$3)', [combo.id, auth.user.id, new Date()]);
+        const { rows: [{ count }] } = await client.query('SELECT count(*)::int AS count FROM likes WHERE combo_id=$1', [combo.id]);
+        await client.query(`UPDATE combos SET data=jsonb_set(data,'{saves}',$2::jsonb) WHERE id=$1`, [combo.id, JSON.stringify(count)]);
+        return { liked: !existing.rowCount, likes: count };
+      });
+      return send(response, 200, result);
     }
 
     const duplicateMatch = path.match(/^\/api\/combos\/([^/]+)\/duplicate$/);
     if (duplicateMatch && request.method === 'POST') {
-      const source = await database.combos.findOne({ id: duplicateMatch[1], userId: auth.user.id }, { projection: { _id: 0 } });
+      const { rows: [row] } = await query(`SELECT data || jsonb_build_object('id',id,'userId',user_id,'createdAt',created_at,'updatedAt',updated_at) AS combo FROM combos WHERE id=$1 AND user_id=$2`, [duplicateMatch[1], auth.user.id]);
+      const source = row?.combo;
       if (!source) return send(response, 404, { error: 'Combo not found.' });
       const now = new Date().toISOString();
       const copy = { ...source, id: randomUUID(), title: `${source.title} (Copy)`, status: 'Draft', views: 0, saves: 0, createdAt: now, updatedAt: now };
-      await database.combos.insertOne(copy);
-      delete copy._id;
+      const { id, userId, createdAt, updatedAt, ...data } = copy;
+      await query('INSERT INTO combos (id,user_id,data,created_at,updated_at) VALUES ($1,$2,$3,$4,$5)', [id,userId,data,createdAt,updatedAt]);
       return send(response, 201, { combo: copy });
     }
 
@@ -362,9 +305,9 @@ const server = createServer(async (request, response) => {
 
 try {
   await connectDatabase();
-  server.listen(port, () => console.log(`Hadoukraft API running on http://localhost:${port} with MongoDB`));
+  server.listen(port, () => console.log(`Hadoukraft API running on http://localhost:${port} with PostgreSQL`));
 } catch (error) {
-  console.error(`MongoDB connection failed: ${error.message}`);
+  console.error(`PostgreSQL connection failed: ${error.message}`);
   process.exitCode = 1;
 }
 

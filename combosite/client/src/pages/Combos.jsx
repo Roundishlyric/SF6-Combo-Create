@@ -24,7 +24,14 @@ function Header({ navigate, active, user }) {
         <a className={active === 'explore' ? 'active' : ''} href="/combos" onClick={(event) => go(event, '/combos')}>Explore</a>
         <a className={active === 'mine' ? 'active' : ''} href="/my-combos" onClick={(event) => go(event, '/my-combos')}>My Combos</a>
       </nav>
-      <div className="home-user"><button className="icon-button" type="button" aria-label="Notifications">●</button><button className="avatar" type="button" aria-label="Open profile" onClick={() => navigate('/profile')}>{user.name.charAt(0).toUpperCase()}</button></div>
+      <div className="home-user">
+        {user ? (
+          <>
+            <button className="icon-button" type="button" aria-label="Notifications">●</button>
+            <button className="avatar" type="button" aria-label="Open profile" onClick={() => navigate('/profile')}>{user.name.charAt(0).toUpperCase()}</button>
+          </>
+        ) : <button className="header-login" type="button" onClick={() => navigate('/login')}>Sign in</button>}
+      </div>
     </header>
   );
 }
@@ -77,6 +84,10 @@ function Combos({ navigate, user }) {
   }, []);
 
   const toggleLiked = async (id) => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
     setLikeError('');
     try {
       const result = await toggleComboLike(id);
@@ -151,7 +162,7 @@ function Combos({ navigate, user }) {
                   <option>All levels</option><option>Beginner</option><option>Intermediate</option><option>Advanced</option><option>Expert</option>
                 </select>
               </label>
-              <button type="button" className={likedOnly ? 'active-filter filter-toggle' : 'filter-toggle'} onClick={() => setLikedOnly((value) => !value)}>
+              <button type="button" className={likedOnly ? 'active-filter filter-toggle' : 'filter-toggle'} onClick={() => user ? setLikedOnly((value) => !value) : navigate('/login')}>
                 {likedOnly ? 'Liked combos' : 'Liked only'} <span>♥</span>
               </button>
             </div>
@@ -174,7 +185,7 @@ function Combos({ navigate, user }) {
                       <img src={getCharacterImage(combo.character)} alt={combo.character} loading="lazy" decoding="async" width="160" height="160" />
                     </div>
                     <div><strong>{combo.character}</strong><span>by {combo.creator}</span></div>
-                    <button className={combo.liked ? 'saved' : ''} onClick={() => toggleLiked(combo.id)} type="button" aria-label={`${combo.liked ? 'Unlike' : 'Like'} ${combo.title}`}>{combo.liked ? '♥' : '♡'}</button>
+                    <button className={combo.liked ? 'saved' : ''} onClick={() => toggleLiked(combo.id)} type="button" aria-label={user ? `${combo.liked ? 'Unlike' : 'Like'} ${combo.title}` : 'Sign in to like this combo'}>{combo.liked ? '♥' : '♡'}</button>
                   </div>
                   <div className="difficulty-line"><span>{combo.game}</span><i className={combo.difficulty.toLowerCase()}>{combo.difficulty}</i></div>
                   <h2>{combo.title}</h2>

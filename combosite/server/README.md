@@ -1,23 +1,21 @@
 # Hadoukraft API
 
-The API uses MongoDB for users, sessions, and combos. Optional video files remain in `server/uploads`, while their metadata and URL are stored in MongoDB.
+The API uses PostgreSQL for users, sessions, combos, likes, and rate limits. Video files remain in `server/uploads`; combo video metadata is stored in PostgreSQL as JSONB.
 
 ## Configuration
 
-1. Copy `.env.example` to `.env`.
-2. Set `MONGODB_URI` to your local MongoDB or Atlas connection string.
-3. Optionally set `SESSION_TTL_DAYS` (defaults to 7, with a supported range of 1–90 days).
-4. Set `TRUST_PROXY=true` only when the API runs behind a trusted reverse proxy that supplies `X-Forwarded-For`.
-5. For Atlas, create a database user and add your current IP address to the Atlas IP access list.
-6. Run `npm run dev` from the `combosite` directory.
+1. Create a PostgreSQL database named `hadoukraft`.
+2. Copy `.env.example` to `.env` and set `DATABASE_URL`.
+3. Run `npm run dev`. Tables and indexes are created automatically.
 
-The server creates these collections and indexes automatically:
+## Import existing MongoDB data
 
-- `users` with a unique email index
-- `sessions` with unique-token and automatic-expiration indexes
-- `rateLimits` with automatic TTL cleanup
-- `combos` indexed by user and update time
+Keep `MONGODB_URI` and `MONGODB_DB` in `.env`, then run:
 
-Check the connection at `http://localhost:3100/api/health`. A successful response includes `"database":"connected"`.
+```sh
+npm run migrate:mongo
+```
 
-Authenticated routes require `Authorization: Bearer <token>`. Combo routes support listing, creation, updating, duplication, and deletion. Videos use `POST /api/videos` and are served from `/uploads/:file`.
+The import is transactional and repeatable: records are inserted or updated by their existing IDs. Only unexpired sessions and rate limits are copied. After verifying the application, remove the MongoDB variables and dependency if you no longer need to rerun the importer.
+
+Check the connection at `http://localhost:3100/api/health`. Authenticated routes require `Authorization: Bearer <token>`.

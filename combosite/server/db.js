@@ -1,54 +1,38 @@
-import { MongoClient } from 'mongodb';
+import pg from 'pg';
 
-let client;
-let database;
+const { Pool } = pg;
+let pool;
+
+const schema = `
+CREATE TABLE IF NOT EXISTS users (id text PRIMARY KEY, name text NOT NULL, email text NOT NULL UNIQUE, password_hash text NOT NULL, password_salt text NOT NULL, created_at timestamptz NOT NULL);
+CREATE TABLE IF NOT EXISTS sessions (token text PRIMARY KEY, user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE, created_at timestamptz NOT NULL, expires_at timestamptz NOT NULL);
+CREATE INDEX IF NOT EXISTS sessions_user_id_idx ON sessions(user_id);
+CREATE INDEX IF NOT EXISTS sessions_expires_at_idx ON sessions(expires_at);
+CREATE TABLE IF NOT EXISTS combos (id text PRIMARY KEY, user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE, data jsonb NOT NULL, created_at timestamptz NOT NULL, updated_at timestamptz NOT NULL);
+CREATE INDEX IF NOT EXISTS combos_user_updated_idx ON combos(user_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS combos_public_idx ON combos(created_at DESC) WHERE data->>'status' = 'Published' AND data->>'visibility' = 'Public';
+CREATE TABLE IF NOT EXISTS likes (user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE, combo_id text NOT NULL REFERENCES combos(id) ON DELETE CASCADE, created_at timestamptz NOT NULL, PRIMARY KEY (user_id, combo_id));
+CREATE INDEX IF NOT EXISTS likes_combo_id_idx ON likes(combo_id);
+CREATE TABLE IF NOT EXISTS rate_limits (key text PRIMARY KEY, count integer NOT NULL, reset_at timestamptz NOT NULL);
+CREATE INDEX IF NOT EXISTS rate_limits_reset_at_idx ON rate_limits(reset_at);
+`;
 
 export async function connectDatabase() {
-  if (database) return database;
-
-  const uri = process.env.MONGODB_URI;
-  if (!uri) {
-    throw new Error('MONGODB_URI is missing. Copy .env.example to .env and add your MongoDB connection string.');
-  }
-
-  client = new MongoClient(uri, {
-    appName: 'Hadoukraft',
-    serverSelectionTimeoutMS: 10000,
-  });
-  await client.connect();
-  database = client.db(process.env.MONGODB_DB || 'hadoukraft');
-
-  await Promise.all([
-    database.collection('users').createIndex({ email: 1 }, { unique: true }),
-    database.collection('sessions').createIndex({ token: 1 }, { unique: true }),
-    database.collection('sessions').createIndex({ userId: 1 }),
-    database.collection('sessions').createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
-    database.collection('rateLimits').createIndex({ key: 1 }, { unique: true }),
-    database.collection('rateLimits').createIndex({ resetAt: 1 }, { expireAfterSeconds: 0 }),
-    database.collection('combos').createIndex({ userId: 1, updatedAt: -1 }),
-    database.collection('likes').createIndex({ userId: 1, comboId: 1 }, { unique: true }),
-    database.collection('likes').createIndex({ comboId: 1 }),
-  ]);
-
-  // Sessions created before expiration was introduced must not remain valid forever.
-  await database.collection('sessions').deleteMany({ expiresAt: { $exists: false } });
-
-  return database;
+  if (pool) return pool;
+  if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is missing. Add your PostgreSQL connection string to .env.');
+  pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  await pool.query(schema);
+  await pool.query('DELETE FROM sessions WHERE expires_at <= now(); DELETE FROM rate_limits WHERE reset_at <= now()');
+  return pool;
 }
 
-export async function collections() {
-  const db = await connectDatabase();
-  return {
-    users: db.collection('users'),
-    sessions: db.collection('sessions'),
-    combos: db.collection('combos'),
-    likes: db.collection('likes'),
-    rateLimits: db.collection('rateLimits'),
-  };
+export async function query(text, values = []) { return (await connectDatabase()).query(text, values); }
+
+export async function transaction(work) {
+  const client = await (await connectDatabase()).connect();
+  try { await client.query('BEGIN'); const result = await work(client); await client.query('COMMIT'); return result; }
+  catch (error) { await client.query('ROLLBACK'); throw error; }
+  finally { client.release(); }
 }
 
-export async function closeDatabase() {
-  if (client) await client.close();
-  client = undefined;
-  database = undefined;
-}
+export async function closeDatabase() { if (pool) await pool.end(); pool = undefined; }
