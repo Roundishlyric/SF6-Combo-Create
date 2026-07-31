@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import '../styles/Home.css';
 import '../styles/Profile.css';
-import { getCombos } from '../lib/api.js';
+import { getProfile, toggleFollow, uploadProfileImage } from '../lib/api.js';
 import { getCharacterImage } from '../lib/characterImages.js';
 import SkeletonLoader from '../components/SkeletonLoader.jsx';
 
@@ -12,10 +12,14 @@ const fighterColor = (fighter) => {
   return 'red';
 };
 
-function Profile({ navigate, user, onLogout }) {
+function Profile({ navigate, user, profileId, onLogout, onUserUpdate }) {
   const [combos, setCombos] = useState([]);
+  const [profileUser, setProfileUser] = useState(user);
   const [loadError, setLoadError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [showLogout, setShowLogout] = useState(false);
+  const [uploading, setUploading] = useState('');
+  const [snackbar, setSnackbar] = useState(null);
   const recentCombos = useMemo(
     () => [...combos].sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)).slice(0, 3),
     [combos],
@@ -23,19 +27,46 @@ function Profile({ navigate, user, onLogout }) {
 
   useEffect(() => {
     let active = true;
-    getCombos()
-      .then((result) => { if (active) setCombos(result); })
+    getProfile(profileId)
+      .then((result) => { if (active) { setProfileUser(result.user); setCombos(result.combos); } })
       .catch((problem) => { if (active) setLoadError(problem.message); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, []);
+  }, [profileId]);
+  const isOwnProfile = profileUser.id === user.id;
 
-  const totalViews = combos.reduce((sum, combo) => sum + Number(combo.views || 0), 0);
   const totalLikes = combos.reduce((sum, combo) => sum + Number(combo.saves || 0), 0);
-  const confirmLogout = () => {
-    if (window.confirm('Are you sure you want to log out?')) {
-      onLogout();
-    }
+  useEffect(() => {
+    if (!showLogout) return undefined;
+    const closeOnEscape = (event) => { if (event.key === 'Escape') setShowLogout(false); };
+    document.addEventListener('keydown', closeOnEscape);
+    return () => document.removeEventListener('keydown', closeOnEscape);
+  }, [showLogout]);
+
+  useEffect(() => {
+    if (!snackbar) return undefined;
+    const timer = window.setTimeout(() => setSnackbar(null), 3200);
+    return () => window.clearTimeout(timer);
+  }, [snackbar]);
+
+  const changeImage = async (kind, file) => {
+    if (!file) return;
+    setUploading(kind);
+    try {
+      const updated = await uploadProfileImage(kind, file);
+      onUserUpdate(updated);
+      setProfileUser((current) => ({ ...current, ...updated }));
+      setSnackbar({ type: 'success', message: `${kind === 'avatar' ? 'Profile picture' : 'Cover photo'} updated successfully.` });
+    } catch (problem) {
+      setSnackbar({ type: 'error', message: problem.message });
+    } finally { setUploading(''); }
+  };
+  const follow = async () => {
+    try {
+      const result = await toggleFollow(profileUser.id);
+      setProfileUser((current) => ({ ...current, ...result }));
+      setSnackbar({ type: 'success', message: result.followed ? `You are now following ${profileUser.name}.` : `You unfollowed ${profileUser.name}.` });
+    } catch (problem) { setSnackbar({ type: 'error', message: problem.message }); }
   };
 
   const go = (event, path) => {
@@ -51,34 +82,39 @@ function Profile({ navigate, user, onLogout }) {
           <span>Hadou<span>Kraft</span></span>
         </a>
         <nav className="home-nav" aria-label="Main navigation">
-          <a href="/home" onClick={(event) => go(event, '/home')}>Home</a>
+          <a href="/create" onClick={(event) => go(event, '/create')}>Create Combo</a>
           <a href="/combos" onClick={(event) => go(event, '/combos')}>Explore</a>
           <a href="/my-combos" onClick={(event) => go(event, '/my-combos')}>My Combos</a>
         </nav>
         <div className="home-user">
-          <button className="avatar active-avatar" type="button" aria-label="Profile">{user.name.charAt(0).toUpperCase()}</button>
+          <button className="avatar active-avatar" type="button" aria-label="Profile">{user.avatarUrl ? <img src={user.avatarUrl} alt="" /> : user.name.charAt(0).toUpperCase()}</button>
         </div>
       </header>
 
       <main className="profile-main">
         <section className="profile-hero">
-          <div className="profile-cover"><span className="cover-grid" /></div>
+          <div className="profile-cover" style={profileUser.coverUrl ? { backgroundImage: `linear-gradient(rgba(8,8,12,.2), rgba(8,8,12,.42)), url(${profileUser.coverUrl})` } : undefined}>
+            <span className="cover-grid" />
+            {isOwnProfile && <label className="change-cover" aria-label="Change cover photo"><input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => changeImage('cover', event.target.files?.[0])} disabled={Boolean(uploading)} /><span>{uploading === 'cover' ? '…' : '✎'}</span></label>}
+          </div>
           <div className="profile-identity">
-            <div className="profile-portrait" aria-hidden="true"><span>{user.name.charAt(0).toUpperCase()}</span><i /></div>
+            <div className="profile-portrait">
+              {profileUser.avatarUrl ? <img src={profileUser.avatarUrl} alt={`${profileUser.name}'s profile`} /> : <span>{profileUser.name.charAt(0).toUpperCase()}</span>}<i />
+              {isOwnProfile && <label className="change-avatar" aria-label="Change profile picture"><input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => changeImage('avatar', event.target.files?.[0])} disabled={Boolean(uploading)} /><span>{uploading === 'avatar' ? '…' : '✎'}</span></label>}
+            </div>
             <div className="identity-copy">
-              <div className="name-row"><h1>{user.name}</h1></div>
-              <p className="player-handle">{user.email}</p>
+              <div className="name-row"><h1>{profileUser.name}</h1></div>
+              <p className="player-handle">{profileUser.email}</p>
             </div>
             <div className="profile-actions">
-              <button className="logout-button" type="button" onClick={confirmLogout}>
-                <span aria-hidden="true">↪</span> Log out
-              </button>
+              {isOwnProfile ? <button className="logout-button" type="button" onClick={() => setShowLogout(true)}><span aria-hidden="true">↪</span> Log out</button>
+                : <button className={`follow-button ${profileUser.followed ? 'following' : ''}`} type="button" onClick={follow}>{profileUser.followed ? 'Following' : '+ Follow'}</button>}
             </div>
           </div>
           <div className="profile-numbers" aria-label="Player statistics">
             <div><strong>{combos.length}</strong><span>Combos</span></div>
             <div><strong>{totalLikes}</strong><span>Likes received</span></div>
-            <div><strong>{totalViews}</strong><span>Total views</span></div>
+            <div><strong>{profileUser.followers || 0}</strong><span>Followers</span></div>
           </div>
         </section>
 
@@ -104,7 +140,6 @@ function Profile({ navigate, user, onLogout }) {
                   <div className="profile-combo-stats">
                     <span><small>DAMAGE</small><strong>{combo.damage || '—'}</strong></span>
                     <span><small>LIKES</small><strong>{combo.saves || 0}</strong></span>
-                    <span><small>VIEWS</small><strong>{combo.views || 0}</strong></span>
                   </div>
                 </article>
               ))}
@@ -118,6 +153,22 @@ function Profile({ navigate, user, onLogout }) {
           </section>
         </div>
       </main>
+      {showLogout && (
+        <div className="logout-modal-backdrop" role="presentation" onMouseDown={() => setShowLogout(false)}>
+          <section className="logout-modal" role="dialog" aria-modal="true" aria-labelledby="logout-title" onMouseDown={(event) => event.stopPropagation()}>
+            <button className="logout-modal-close" type="button" onClick={() => setShowLogout(false)} aria-label="Close logout dialog">×</button>
+            <div className="logout-modal-icon" aria-hidden="true">↪</div>
+            <p className="eyebrow">LEAVING THE LAB?</p>
+            <h2 id="logout-title">Log out of HadouKraft?</h2>
+            <p>Your combos are saved. You can sign back in whenever you're ready to train again.</p>
+            <div className="logout-modal-actions">
+              <button className="logout-cancel" type="button" onClick={() => setShowLogout(false)} autoFocus>Stay signed in</button>
+              <button className="logout-confirm" type="button" onClick={onLogout}>Log out</button>
+            </div>
+          </section>
+        </div>
+      )}
+      {snackbar && <div className={`profile-snackbar ${snackbar.type}`} role="status" aria-live="polite"><span>{snackbar.type === 'success' ? '✓' : '!'}</span>{snackbar.message}<button type="button" onClick={() => setSnackbar(null)} aria-label="Dismiss notification">×</button></div>}
       <footer className="home-footer"><span>Hadoukraft</span><p>Train smarter. Hit harder.</p><small>© 2026 Hadoukraft</small></footer>
     </div>
   );

@@ -26,7 +26,7 @@ try {
 
     const combos = await source.collection('combos').find({}).toArray();
     for (const combo of combos) {
-      const { _id, id, userId, createdAt, updatedAt, ...data } = combo;
+      const { _id, id, userId, createdAt, updatedAt, views, ...data } = combo;
       await client.query(`INSERT INTO combos (id,user_id,data,created_at,updated_at) VALUES ($1,$2,$3,$4,$5)
         ON CONFLICT (id) DO UPDATE SET user_id=excluded.user_id,data=excluded.data,created_at=excluded.created_at,updated_at=excluded.updated_at`,
       [id,userId,data,date(createdAt),date(updatedAt, date(createdAt))]);

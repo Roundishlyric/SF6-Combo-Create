@@ -52,7 +52,6 @@ function Home({ navigate, user }) {
     }
   };
   const totalLikes = myCombos.reduce((sum, combo) => sum + Number(combo.saves || 0), 0);
-  const totalViews = myCombos.reduce((sum, combo) => sum + Number(combo.views || 0), 0);
 
   const go = (event, path) => {
     event.preventDefault();
@@ -68,7 +67,7 @@ function Home({ navigate, user }) {
         </a>
 
         <nav className="home-nav" aria-label="Main navigation">
-          <a className="active" href="/home" onClick={(event) => go(event, '/home')}>Home</a>
+          {user && <a href="/create" onClick={(event) => go(event, '/create')}>Create Combo</a>}
           <a href="/combos" onClick={(event) => go(event, '/combos')}>Explore</a>
           <a href="/my-combos" onClick={(event) => go(event, '/my-combos')}>My Combos</a>
         </nav>
@@ -77,7 +76,7 @@ function Home({ navigate, user }) {
           {user ? (
             <>
               <button className="icon-button" aria-label="Notifications">●</button>
-              <button className="avatar" aria-label="Open profile" onClick={() => navigate('/profile')}>{user.name.charAt(0).toUpperCase()}</button>
+              <button className="avatar" aria-label="Open profile" onClick={() => navigate('/profile')}>{user.avatarUrl ? <img src={user.avatarUrl} alt="" /> : user.name.charAt(0).toUpperCase()}</button>
             </>
           ) : <button className="header-login" type="button" onClick={() => navigate('/login')}>Sign in</button>}
         </div>
@@ -104,7 +103,6 @@ function Home({ navigate, user }) {
         {user && <section className="stats-grid" aria-label="Your statistics">
           <article><span className="stat-icon orange">✦</span><div><strong>{myCombos.length}</strong><span>Combos created</span></div></article>
           <article><span className="stat-icon blue">♥</span><div><strong>{totalLikes}</strong><span>Likes received</span></div></article>
-          <article><span className="stat-icon purple">◉</span><div><strong>{totalViews}</strong><span>Total views</span></div></article>
         </section>}
 
         <section className="combo-section">

@@ -14,6 +14,7 @@ const port = Number(process.env.PORT || 3001);
 const serverDirectory = dirname(fileURLToPath(import.meta.url));
 const uploadsDirectory = join(serverDirectory, 'uploads');
 const videoTypes = { 'video/mp4': '.mp4', 'video/webm': '.webm', 'video/quicktime': '.mov' };
+const imageTypes = { 'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp' };
 const sessionTtlDays = Math.max(1, Math.min(90, Number(process.env.SESSION_TTL_DAYS) || 7));
 const sessionTtlMs = sessionTtlDays * 24 * 60 * 60 * 1000;
 const trustProxy = process.env.TRUST_PROXY === 'true';
@@ -53,7 +54,7 @@ const passwordMatches = async (password, user) => {
   return timingSafeEqual(candidate, Buffer.from(user.passwordHash, 'hex'));
 };
 
-const publicUser = ({ id, name, email, createdAt }) => ({ id, name, email, createdAt });
+const publicUser = ({ id, name, email, createdAt, avatarUrl, coverUrl }) => ({ id, name, email, createdAt, avatarUrl: avatarUrl || '', coverUrl: coverUrl || '' });
 
 const createSession = async (userId) => {
   const token = randomBytes(32).toString('hex');
@@ -94,7 +95,7 @@ const authenticate = async (request) => {
   const token = header.startsWith('Bearer ') ? header.slice(7) : '';
   if (!token) return null;
   const { rows: [session] } = await query(`SELECT s.user_id AS "userId", s.expires_at AS "expiresAt", u.id, u.name, u.email,
-    u.password_hash AS "passwordHash", u.password_salt AS "passwordSalt", u.created_at AS "createdAt"
+    u.password_hash AS "passwordHash", u.password_salt AS "passwordSalt", u.created_at AS "createdAt", u.avatar_url AS "avatarUrl", u.cover_url AS "coverUrl"
     FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token=$1`, [token]);
   if (!session) return null;
   const expiresAt = new Date(session.expiresAt).getTime();
@@ -122,11 +123,11 @@ const server = createServer(async (request, response) => {
       return send(response, 200, { status: 'ok', database: 'connected' });
     }
 
-    const uploadMatch = path.match(/^\/uploads\/([a-f0-9-]+\.(?:mp4|webm|mov))$/i);
+    const uploadMatch = path.match(/^\/uploads\/([a-f0-9-]+\.(?:mp4|webm|mov|jpg|png|webp))$/i);
     if (request.method === 'GET' && uploadMatch) {
       const filePath = join(uploadsDirectory, uploadMatch[1]);
       const file = await stat(filePath);
-      const contentTypes = { '.mp4': 'video/mp4', '.webm': 'video/webm', '.mov': 'video/quicktime' };
+      const contentTypes = { '.mp4': 'video/mp4', '.webm': 'video/webm', '.mov': 'video/quicktime', '.jpg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp' };
       const contentType = contentTypes[extname(filePath).toLowerCase()] || 'application/octet-stream';
       const range = request.headers.range;
       if (range) {
@@ -189,7 +190,7 @@ const server = createServer(async (request, response) => {
       if (addressLimit.blocked || accountLimit.blocked) {
         return rejectRateLimit(response, addressLimit.blocked ? addressLimit : accountLimit);
       }
-      const { rows: [user] } = await query('SELECT id,name,email,password_hash AS "passwordHash",password_salt AS "passwordSalt",created_at AS "createdAt" FROM users WHERE email=$1', [email]);
+      const { rows: [user] } = await query('SELECT id,name,email,password_hash AS "passwordHash",password_salt AS "passwordSalt",created_at AS "createdAt",avatar_url AS "avatarUrl",cover_url AS "coverUrl" FROM users WHERE email=$1', [email]);
       if (!user || !(await passwordMatches(String(body.password || ''), user))) return send(response, 401, { error: 'Incorrect email or password.' });
       const session = await createSession(user.id);
       return send(response, 200, { user: publicUser(user), ...session });
@@ -203,6 +204,49 @@ const server = createServer(async (request, response) => {
     if (request.method === 'POST' && path === '/api/auth/logout') {
       await query('DELETE FROM sessions WHERE token=$1', [auth.token]);
       return send(response, 200, { message: 'Logged out.' });
+    }
+    if (request.method === 'POST' && path === '/api/profile/image') {
+      const kind = url.searchParams.get('kind');
+      if (!['avatar', 'cover'].includes(kind)) return send(response, 400, { error: 'Image kind must be avatar or cover.' });
+      const contentType = String(request.headers['content-type'] || '').split(';')[0];
+      const extension = imageTypes[contentType];
+      if (!extension) return send(response, 415, { error: 'Only JPEG, PNG, and WebP images are supported.' });
+      await mkdir(uploadsDirectory, { recursive: true });
+      const fileName = `${randomUUID()}${extension}`;
+      const filePath = join(uploadsDirectory, fileName);
+      let bytes = 0;
+      const limiter = new Transform({ transform(chunk, encoding, callback) { bytes += chunk.length; callback(bytes > 8 * 1024 * 1024 ? new Error('Image must be 8 MB or smaller.') : null, chunk); } });
+      try { await pipeline(request, limiter, createWriteStream(filePath, { flags: 'wx' })); }
+      catch (error) { await unlink(filePath).catch(() => {}); throw error; }
+      const imageUrl = `/uploads/${fileName}`;
+      const column = kind === 'avatar' ? 'avatar_url' : 'cover_url';
+      const { rows: [updated] } = await query(`UPDATE users SET ${column}=$1 WHERE id=$2 RETURNING id,name,email,created_at AS "createdAt",avatar_url AS "avatarUrl",cover_url AS "coverUrl"`, [imageUrl, auth.user.id]);
+      return send(response, 200, { user: publicUser(updated) });
+    }
+    const profileMatch = path.match(/^\/api\/users\/([^/]+)\/profile$/);
+    if (profileMatch && request.method === 'GET') {
+      const { rows: [profile] } = await query(`SELECT u.id,u.name,u.email,u.created_at AS "createdAt",u.avatar_url AS "avatarUrl",u.cover_url AS "coverUrl",
+        (SELECT count(*)::int FROM follows WHERE followed_id=u.id) AS "followers",
+        (SELECT count(*)::int FROM follows WHERE follower_id=u.id) AS "following",
+        EXISTS(SELECT 1 FROM follows WHERE follower_id=$1 AND followed_id=u.id) AS "followed"
+        FROM users u WHERE u.id=$2`, [auth.user.id, decodeURIComponent(profileMatch[1])]);
+      if (!profile) return send(response, 404, { error: 'Player not found.' });
+      const ownProfile = profile.id === auth.user.id;
+      const { rows } = await query(`SELECT data || jsonb_build_object('id',id,'userId',user_id,'createdAt',created_at,'updatedAt',updated_at) AS combo
+        FROM combos WHERE user_id=$1 ${ownProfile ? '' : "AND data->>'status'='Published' AND data->>'visibility'='Public'"} ORDER BY updated_at DESC`, [profile.id]);
+      return send(response, 200, { user: profile, combos: rows.map((row) => row.combo) });
+    }
+    const followMatch = path.match(/^\/api\/users\/([^/]+)\/follow$/);
+    if (followMatch && request.method === 'POST') {
+      const followedId = decodeURIComponent(followMatch[1]);
+      if (followedId === auth.user.id) return send(response, 400, { error: 'You cannot follow yourself.' });
+      const result = await transaction(async (client) => {
+        const removed = await client.query('DELETE FROM follows WHERE follower_id=$1 AND followed_id=$2 RETURNING follower_id', [auth.user.id, followedId]);
+        if (!removed.rowCount) await client.query('INSERT INTO follows (follower_id,followed_id,created_at) VALUES ($1,$2,now())', [auth.user.id, followedId]);
+        const { rows: [{ count }] } = await client.query('SELECT count(*)::int AS count FROM follows WHERE followed_id=$1', [followedId]);
+        return { followed: !removed.rowCount, followers: count };
+      });
+      return send(response, 200, result);
     }
     if (request.method === 'POST' && path === '/api/videos') {
       const contentType = String(request.headers['content-type'] || '').split(';')[0];
@@ -242,7 +286,7 @@ const server = createServer(async (request, response) => {
       const body = await readBody(request);
       validateCombo(body);
       const now = new Date().toISOString();
-      const combo = { ...body, id: randomUUID(), userId: auth.user.id, game: 'Street Fighter 6', views: 0, saves: 0, createdAt: now, updatedAt: now };
+      const combo = { ...body, id: randomUUID(), userId: auth.user.id, game: 'Street Fighter 6', saves: 0, createdAt: now, updatedAt: now };
       const { id, userId, createdAt, updatedAt, ...data } = combo;
       await query('INSERT INTO combos (id,user_id,data,created_at,updated_at) VALUES ($1,$2,$3,$4,$5)', [id,userId,data,createdAt,updatedAt]);
       return send(response, 201, { combo });
@@ -256,7 +300,6 @@ const server = createServer(async (request, response) => {
       delete protectedFields.id;
       delete protectedFields.userId;
       delete protectedFields.createdAt;
-      delete protectedFields.views;
       delete protectedFields.saves;
       const updatedAt = new Date().toISOString();
       const { rows: [result] } = await query(`UPDATE combos SET data=data || $1::jsonb, updated_at=$2 WHERE id=$3 AND user_id=$4
@@ -290,7 +333,7 @@ const server = createServer(async (request, response) => {
       const source = row?.combo;
       if (!source) return send(response, 404, { error: 'Combo not found.' });
       const now = new Date().toISOString();
-      const copy = { ...source, id: randomUUID(), title: `${source.title} (Copy)`, status: 'Draft', views: 0, saves: 0, createdAt: now, updatedAt: now };
+      const copy = { ...source, id: randomUUID(), title: `${source.title} (Copy)`, status: 'Draft', saves: 0, createdAt: now, updatedAt: now };
       const { id, userId, createdAt, updatedAt, ...data } = copy;
       await query('INSERT INTO combos (id,user_id,data,created_at,updated_at) VALUES ($1,$2,$3,$4,$5)', [id,userId,data,createdAt,updatedAt]);
       return send(response, 201, { combo: copy });

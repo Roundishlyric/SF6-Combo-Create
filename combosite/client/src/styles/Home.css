@@ -93,6 +93,7 @@
 }
 
 .home-brand { display: flex; align-items: center; gap: 11px; color: white; text-decoration: none; font-weight: 800; font-size: 1.05rem; }
+.avatar { overflow: hidden; }.avatar img { width: 100%; height: 100%; object-fit: cover; }
 .home-brand > span:last-child span { color: #ff5538; }
 .brand-mark { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 11px; background: linear-gradient(135deg, #ff3d21, #ff8a32); font-size: .74rem; font-style: italic; box-shadow: 0 8px 24px rgba(255, 75, 36, .25); }
 .home-nav { display: flex; align-items: center; gap: 34px; height: 100%; }

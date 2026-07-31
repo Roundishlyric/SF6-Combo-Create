@@ -41,6 +41,15 @@ const storeSession = ({ user, token, expiresAt }, remember = false) => {
 
 export const getSession = () => storedSession();
 
+export const updateSessionUser = (user) => {
+  const current = storedSession();
+  if (!current) return null;
+  const updated = { ...current, ...user };
+  const storage = window.localStorage.getItem(SESSION_KEY) ? window.localStorage : window.sessionStorage;
+  storage.setItem(SESSION_KEY, JSON.stringify(updated));
+  return updated;
+};
+
 export const registerUser = async (details) =>
   storeSession(await request('/api/auth/register', { method: 'POST', body: JSON.stringify(details) }));
 
@@ -62,6 +71,8 @@ export const logoutUser = async () => {
 };
 
 export const getCombos = async () => (await request('/api/combos')).combos;
+export const getProfile = async (userId) => request(`/api/users/${encodeURIComponent(userId)}/profile`);
+export const toggleFollow = async (userId) => request(`/api/users/${encodeURIComponent(userId)}/follow`, { method: 'POST' });
 
 export const getExploreCombos = async () => (await request('/api/explore')).combos;
 
@@ -82,6 +93,18 @@ export const uploadVideo = async (file) => {
   const body = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(body.error || 'The video could not be uploaded.');
   return body.video;
+};
+
+export const uploadProfileImage = async (kind, file) => {
+  const session = storedSession();
+  const response = await fetch(`/api/profile/image?kind=${encodeURIComponent(kind)}`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${session?.token || ''}`, 'Content-Type': file.type },
+    body: file,
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(body.error || 'The image could not be updated.');
+  return body.user;
 };
 
 export const saveCombo = async (combo) =>

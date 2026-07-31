@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import '../styles/Home.css';
 import '../styles/Library.css';
 import sf6Art from '../assets/sf6-optimized.jpg';
@@ -14,13 +14,80 @@ const fighterColor = (fighter) => {
   return 'red';
 };
 
+const fighterOptions = [
+  'All fighters', 'A.K.I.', 'Akuma', 'Alex', 'Blanka', 'Cammy', 'Chun-Li', 'C. Viper',
+  'Dee Jay', 'Dhalsim', 'E. Honda', 'Ed', 'Elena', 'Guile', 'Ingrid', 'Jamie', 'J.P.',
+  'Juri', 'Ken', 'Kimberly', 'Lily', 'Luke', 'M. Bison', 'Mai', 'Manon', 'Marisa',
+  'Rashid', 'Ryu', 'Sagat', 'Terry', 'Zangief',
+];
+
+function FighterSelect({ value, onChange }) {
+  const [open, setOpen] = useState(false);
+  const root = useRef(null);
+
+  useEffect(() => {
+    const close = (event) => {
+      if (event.key === 'Escape' || (event.type === 'mousedown' && !root.current?.contains(event.target))) setOpen(false);
+    };
+    document.addEventListener('mousedown', close);
+    document.addEventListener('keydown', close);
+    return () => { document.removeEventListener('mousedown', close); document.removeEventListener('keydown', close); };
+  }, []);
+
+  return (
+    <div className={`fighter-select ${open ? 'open' : ''}`} ref={root}>
+      <button type="button" className="fighter-select-trigger" onClick={() => setOpen((current) => !current)} aria-haspopup="listbox" aria-expanded={open}>
+        {value === 'All fighters' ? <span className="fighter-select-all" aria-hidden="true">✦</span> : <img src={getCharacterImage(value)} alt="" />}
+        <span>{value}</span><i aria-hidden="true">⌄</i>
+      </button>
+      {open && <div className="fighter-select-menu" role="listbox" aria-label="Fighter">
+        {fighterOptions.map((option) => (
+          <button type="button" role="option" aria-selected={value === option} className={value === option ? 'selected' : ''} key={option} onClick={() => { onChange(option); setOpen(false); }}>
+            {option === 'All fighters' ? <span className="fighter-select-all" aria-hidden="true">✦</span> : <img src={getCharacterImage(option)} alt="" loading="lazy" />}
+            <span>{option}</span>{value === option && <b aria-hidden="true">✓</b>}
+          </button>
+        ))}
+      </div>}
+    </div>
+  );
+}
+
+function FilterSelect({ value, onChange, options, label }) {
+  const [open, setOpen] = useState(false);
+  const root = useRef(null);
+
+  useEffect(() => {
+    const close = (event) => {
+      if (event.key === 'Escape' || (event.type === 'mousedown' && !root.current?.contains(event.target))) setOpen(false);
+    };
+    document.addEventListener('mousedown', close);
+    document.addEventListener('keydown', close);
+    return () => { document.removeEventListener('mousedown', close); document.removeEventListener('keydown', close); };
+  }, []);
+
+  return (
+    <div className={`filter-select ${open ? 'open' : ''}`} ref={root}>
+      <button type="button" className="filter-select-trigger" onClick={() => setOpen((current) => !current)} aria-haspopup="listbox" aria-expanded={open}>
+        <span>{value}</span><i aria-hidden="true">⌄</i>
+      </button>
+      {open && <div className="filter-select-menu" role="listbox" aria-label={label}>
+        {options.map((option) => (
+          <button type="button" role="option" aria-selected={value === option} className={value === option ? 'selected' : ''} key={option} onClick={() => { onChange(option); setOpen(false); }}>
+            <span>{option}</span>{value === option && <b aria-hidden="true">✓</b>}
+          </button>
+        ))}
+      </div>}
+    </div>
+  );
+}
+
 function Header({ navigate, active, user }) {
   const go = (event, path) => { event.preventDefault(); navigate(path); };
   return (
     <header className="home-header">
       <a className="home-brand" href="/home" onClick={(event) => go(event, '/home')}><span className="brand-mark">HK</span><span>Hadou<span>Kraft</span></span></a>
       <nav className="home-nav" aria-label="Main navigation">
-        <a href="/home" onClick={(event) => go(event, '/home')}>Home</a>
+        {user && <a href="/create" onClick={(event) => go(event, '/create')}>Create Combo</a>}
         <a className={active === 'explore' ? 'active' : ''} href="/combos" onClick={(event) => go(event, '/combos')}>Explore</a>
         <a className={active === 'mine' ? 'active' : ''} href="/my-combos" onClick={(event) => go(event, '/my-combos')}>My Combos</a>
       </nav>
@@ -28,7 +95,7 @@ function Header({ navigate, active, user }) {
         {user ? (
           <>
             <button className="icon-button" type="button" aria-label="Notifications">●</button>
-            <button className="avatar" type="button" aria-label="Open profile" onClick={() => navigate('/profile')}>{user.name.charAt(0).toUpperCase()}</button>
+            <button className="avatar" type="button" aria-label="Open profile" onClick={() => navigate('/profile')}>{user.avatarUrl ? <img src={user.avatarUrl} alt="" /> : user.name.charAt(0).toUpperCase()}</button>
           </>
         ) : <button className="header-login" type="button" onClick={() => navigate('/login')}>Sign in</button>}
       </div>
@@ -47,11 +114,6 @@ function Combos({ navigate, user }) {
   const [loadError, setLoadError] = useState('');
   const [likeError, setLikeError] = useState('');
   const [shareStatus, setShareStatus] = useState({ id: '', message: '' });
-
-  const fighterOptions = useMemo(() => {
-    const fighters = communityCombos.map((combo) => combo.character).filter(Boolean);
-    return ['All fighters', ...Array.from(new Set(fighters))];
-  }, [communityCombos]);
 
   const results = useMemo(() => {
     const filtered = communityCombos.filter((combo) => {
@@ -143,24 +205,12 @@ function Combos({ navigate, user }) {
             <div className="filter-panel">
               <h2>Filters</h2>
               <label className="search-box sidebar-search"><span>⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search fighter, combo, or creator..." /></label>
-              <label>Fighter
-                <select value={fighter} onChange={(event) => setFighter(event.target.value)}>
-                  {fighterOptions.map((option) => (
-                    <option key={option} value={option}>{option}</option>
-                  ))}
-                </select>
-              </label>
+              <label>Fighter<FighterSelect value={fighter} onChange={setFighter} /></label>
               <label>Sort by
-                <select value={sortBy} onChange={(event) => setSortBy(event.target.value)}>
-                  <option>Most recent</option>
-                  <option>Most popular</option>
-                  <option>Highest damage</option>
-                </select>
+                <FilterSelect label="Sort by" value={sortBy} onChange={setSortBy} options={['Most recent', 'Most popular', 'Highest damage']} />
               </label>
               <label>Difficulty
-                <select value={difficulty} onChange={(event) => setDifficulty(event.target.value)}>
-                  <option>All levels</option><option>Beginner</option><option>Intermediate</option><option>Advanced</option><option>Expert</option>
-                </select>
+                <FilterSelect label="Difficulty" value={difficulty} onChange={setDifficulty} options={['All levels', 'Beginner', 'Intermediate', 'Advanced', 'Expert']} />
               </label>
               <button type="button" className={likedOnly ? 'active-filter filter-toggle' : 'filter-toggle'} onClick={() => user ? setLikedOnly((value) => !value) : navigate('/login')}>
                 {likedOnly ? 'Liked combos' : 'Liked only'} <span>♥</span>
@@ -184,7 +234,7 @@ function Combos({ navigate, user }) {
                     <div className={`fighter-avatar ${fighterColor(combo.character)}`}>
                       <img src={getCharacterImage(combo.character)} alt={combo.character} loading="lazy" decoding="async" width="160" height="160" />
                     </div>
-                    <div><strong>{combo.character}</strong><span>by {combo.creator}</span></div>
+                    <div><strong>{combo.character}</strong><button className="creator-link" type="button" onClick={() => navigate(`/profile/${combo.userId}`)}>by {combo.creator}</button></div>
                     <button className={combo.liked ? 'saved' : ''} onClick={() => toggleLiked(combo.id)} type="button" aria-label={user ? `${combo.liked ? 'Unlike' : 'Like'} ${combo.title}` : 'Sign in to like this combo'}>{combo.liked ? '♥' : '♡'}</button>
                   </div>
                   <div className="difficulty-line"><span>{combo.game}</span><i className={combo.difficulty.toLowerCase()}>{combo.difficulty}</i></div>

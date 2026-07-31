@@ -112,14 +112,14 @@ function Create({ navigate, user }) {
         </a>
 
         <nav className="home-nav" aria-label="Main navigation">
-          <a href="/home" onClick={(event) => go(event, '/home')}>Home</a>
+          <a className="active" href="/create" onClick={(event) => go(event, '/create')}>Create Combo</a>
           <a href="/combos" onClick={(event) => go(event, '/combos')}>Explore</a>
           <a className="active" href="/my-combos" onClick={(event) => go(event, '/my-combos')}>My Combos</a>
         </nav>
 
         <div className="home-user">
           <button className="icon-button" type="button" aria-label="Notifications">●</button>
-          <button className="avatar" type="button" aria-label="Open profile" onClick={() => navigate('/profile')}>{user.name.charAt(0).toUpperCase()}</button>
+          <button className="avatar" type="button" aria-label="Open profile" onClick={() => navigate('/profile')}>{user.avatarUrl ? <img src={user.avatarUrl} alt="" /> : user.name.charAt(0).toUpperCase()}</button>
         </div>
       </header>
 

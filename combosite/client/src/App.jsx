@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
-import { getSession, loginUser, logoutUser, registerUser } from './lib/api.js';
+import { getSession, loginUser, logoutUser, registerUser, updateSessionUser } from './lib/api.js';
 import SkeletonLoader from './components/SkeletonLoader.jsx';
 
 const Login = lazy(() => import('./pages/Login.jsx'));
@@ -43,6 +43,8 @@ function App() {
     navigate('/login');
   };
 
+  const updateUser = (details) => setUser(updateSessionUser(details));
+
   let page;
 
   if (path === '/register') {
@@ -59,8 +61,9 @@ function App() {
     page = <Create navigate={navigate} user={user} />;
   } else if (path === '/my-combos') {
     page = <MyCombos navigate={navigate} user={user} />;
-  } else if (path === '/profile') {
-    page = <Profile navigate={navigate} user={user} onLogout={logout} />;
+  } else if (path === '/profile' || path.startsWith('/profile/')) {
+    const profileId = path.startsWith('/profile/') ? decodeURIComponent(path.slice('/profile/'.length)) : user.id;
+    page = <Profile navigate={navigate} user={user} profileId={profileId} onLogout={logout} onUserUpdate={updateUser} />;
   } else {
     page = <Home navigate={navigate} user={user} />;
   }

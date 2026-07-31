@@ -66,7 +66,6 @@ function MyCombos({ navigate, user }) {
 
   const publishedCount = personalCombos.filter((combo) => combo.status === 'Published').length;
   const draftCount = personalCombos.filter((combo) => combo.status === 'Draft').length;
-  const totalViews = personalCombos.reduce((sum, combo) => sum + Number(combo.views || 0), 0);
   const totalSaves = personalCombos.reduce((sum, combo) => sum + Number(combo.saves || 0), 0);
 
   return (
@@ -79,7 +78,6 @@ function MyCombos({ navigate, user }) {
         </section>
         <section className="mini-stats">
           <article><span className="stat-icon orange">✦</span><div><small>TOTAL COMBOS</small><strong>{personalCombos.length}</strong></div></article>
-          <article><span className="stat-icon blue">◈</span><div><small>TOTAL VIEWS</small><strong>{totalViews.toLocaleString()}</strong></div></article>
           <article><span className="stat-icon purple">♥</span><div><small>TOTAL SAVES</small><strong>{totalSaves.toLocaleString()}</strong></div></article>
         </section>
         <section className="my-library-panel">
@@ -99,7 +97,6 @@ function MyCombos({ navigate, user }) {
                 </div>
                 <div className="my-combo-info"><div><span>{combo.character} · SF6</span><i className={combo.status.toLowerCase()}>{combo.status}</i></div><h2>{combo.title}</h2><code>{combo.notation}</code></div>
                 <div className="my-combo-number"><small>DAMAGE</small><strong>{combo.damage}</strong></div>
-                <div className="my-combo-number"><small>VIEWS</small><strong>{combo.views}</strong></div>
                 <div className="updated"><small>UPDATED</small><span>{relativeDate(combo.updatedAt)}</span></div>
                 <div className="row-menu-wrap"><button className="row-menu" onClick={() => setMenu(menu === combo.id ? null : combo.id)} type="button" aria-label={`Actions for ${combo.title}`}>•••</button>{menu === combo.id && <div className="menu-popover"><button type="button" onClick={() => duplicate(combo.id)}>Duplicate</button><button type="button" onClick={() => navigator.clipboard?.writeText(combo.notation)}>Copy notation</button><button className="delete-action" type="button" onClick={() => remove(combo.id)}>Delete</button></div>}</div>
               </article>
