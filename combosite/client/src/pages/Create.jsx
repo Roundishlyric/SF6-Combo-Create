@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import '../styles/Home.css';
 import '../styles/Create.css';
-import { saveCombo, uploadVideo } from '../lib/api.js';
+import { getCombos, saveCombo, updateCombo, uploadVideo } from '../lib/api.js';
 import { getCharacterImage } from '../lib/characterImages.js';
 
 const initialForm = {
@@ -23,7 +23,23 @@ const sf6Characters = [
   'Rashid', 'Ryu', 'Sagat', 'Terry', 'Zangief',
 ];
 
-function Create({ navigate, user }) {
+function SelectField({ label, name, value, options, onChange }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <label>{label}
+      <div className={`styled-select ${open ? 'open' : ''}`} onBlur={() => window.setTimeout(() => setOpen(false), 100)}>
+        <button type="button" className="styled-select-trigger" onClick={() => setOpen((current) => !current)} aria-haspopup="listbox" aria-expanded={open}>
+          <span>{value}</span><i aria-hidden="true" />
+        </button>
+        {open && <div className="styled-select-menu" role="listbox">
+          {options.map((option) => <button type="button" role="option" aria-selected={value === option} className={value === option ? 'selected' : ''} onClick={() => { onChange({ target: { name, value: option } }); setOpen(false); }} key={option}>{option}{value === option && <span>✓</span>}</button>)}
+        </div>}
+      </div>
+    </label>
+  );
+}
+
+function Create({ navigate, user, comboId = null }) {
   const [form, setForm] = useState(initialForm);
   const [submitted, setSubmitted] = useState(false);
   const [video, setVideo] = useState(null);
@@ -33,6 +49,25 @@ function Create({ navigate, user }) {
   const [characterError, setCharacterError] = useState(false);
   const [videoError, setVideoError] = useState('');
   const [submitError, setSubmitError] = useState('');
+  const [existingVideo, setExistingVideo] = useState(null);
+  const [existingStatus, setExistingStatus] = useState('Published');
+
+  useEffect(() => {
+    if (!comboId) return undefined;
+    let active = true;
+    getCombos()
+      .then((combos) => {
+        const combo = combos.find((item) => item.id === comboId);
+        if (!combo) throw new Error('Combo not found.');
+        if (!active) return;
+        setForm(Object.fromEntries(Object.keys(initialForm).map((key) => [key, combo[key] ?? initialForm[key]])));
+        setCharacterQuery(combo.character || '');
+        setExistingVideo(combo.video || null);
+        setExistingStatus(combo.status || 'Draft');
+      })
+      .catch((problem) => { if (active) setSubmitError(problem.message); });
+    return () => { active = false; };
+  }, [comboId]);
 
   useEffect(() => () => {
     if (videoPreviewUrl) URL.revokeObjectURL(videoPreviewUrl);
@@ -56,18 +91,20 @@ function Create({ navigate, user }) {
       setCharacterOpen(true);
       return;
     }
-    const confirmed = window.confirm(
-      `Publish "${form.title.trim()}" as a ${form.visibility.toLowerCase()} combo?`,
-    );
+    const confirmed = window.confirm(comboId
+      ? `Save changes to "${form.title.trim()}"?`
+      : `Publish "${form.title.trim()}" as a ${form.visibility.toLowerCase()} combo?`);
     if (!confirmed) return;
 
     try {
       const uploadedVideo = video ? await uploadVideo(video) : null;
-      await saveCombo({
+      const combo = {
         ...form,
-        status: 'Published',
-        video: uploadedVideo,
-      });
+        status: comboId ? existingStatus : 'Published',
+        video: uploadedVideo || existingVideo,
+      };
+      if (comboId) await updateCombo(comboId, combo);
+      else await saveCombo(combo);
       setSubmitted(true);
       window.setTimeout(() => navigate('/my-combos'), 650);
     } catch (problem) {
@@ -112,9 +149,10 @@ function Create({ navigate, user }) {
         </a>
 
         <nav className="home-nav" aria-label="Main navigation">
+          <a href="/home" onClick={(event) => go(event, '/home')}>Home</a>
           <a className="active" href="/create" onClick={(event) => go(event, '/create')}>Create Combo</a>
           <a href="/combos" onClick={(event) => go(event, '/combos')}>Explore</a>
-          <a className="active" href="/my-combos" onClick={(event) => go(event, '/my-combos')}>My Combos</a>
+          <a href="/my-combos" onClick={(event) => go(event, '/my-combos')}>My Combos</a>
         </nav>
 
         <div className="home-user">
@@ -126,9 +164,9 @@ function Create({ navigate, user }) {
       <main className="create-main">
         <div className="create-heading">
           <div>
-            <h1>Create a new combo</h1>
+            <h1>{comboId ? 'Update combo' : 'Create a new combo'}</h1>
           </div>
-          <span className="draft-status"><i /> Draft</span>
+          <span className="draft-status"><i /> {comboId ? existingStatus : 'Draft'}</span>
         </div>
 
         <form className="combo-form" onSubmit={submit}>
@@ -186,11 +224,7 @@ function Create({ navigate, user }) {
               <label className="wide">Combo title
                 <input name="title" value={form.title} onChange={updateField} placeholder="e.g. Corner carry punish" required />
               </label>
-              <label>Difficulty
-                <select name="difficulty" value={form.difficulty} onChange={updateField}>
-                  <option>Beginner</option><option>Intermediate</option><option>Advanced</option><option>Expert</option>
-                </select>
-              </label>
+              <SelectField label="Difficulty" name="difficulty" value={form.difficulty} options={['Beginner', 'Intermediate', 'Advanced', 'Expert']} onChange={updateField} />
               <label>Damage
                 <div className="input-suffix"><input name="damage" value={form.damage} onChange={updateField} inputMode="numeric" placeholder="3420" /><span>DMG</span></div>
               </label>
@@ -215,12 +249,8 @@ function Create({ navigate, user }) {
               <div><h2>Setup & notes</h2></div>
             </div>
             <div className="form-grid">
-              <label>Screen position
-                <select name="position" value={form.position} onChange={updateField}><option>Midscreen</option><option>Corner</option><option>Anywhere</option></select>
-              </label>
-              <label>Resource use
-                <select name="meter" value={form.meter} onChange={updateField}><option>No meter</option><option>1 bar</option><option>2 bars</option><option>3+ bars</option></select>
-              </label>
+              <SelectField label="Screen position" name="position" value={form.position} options={['Midscreen', 'Corner', 'Anywhere']} onChange={updateField} />
+              <SelectField label="Resource use" name="meter" value={form.meter} options={['No meter', '1 bar', '2 bars', '3+ bars']} onChange={updateField} />
               <label className="wide">Training notes <span className="optional">OPTIONAL</span>
                 <textarea className="notes-field" name="notes" value={form.notes} onChange={updateField} placeholder="Timing tips, counter-hit requirements, matchup notes..." />
               </label>
@@ -247,7 +277,7 @@ function Create({ navigate, user }) {
             </label>
             {videoPreviewUrl && (
               <div className="video-preview-wrap">
-                <video className="video-preview" src={videoPreviewUrl} controls preload="metadata">
+                <video className="video-preview" src={videoPreviewUrl} controls preload="metadata" poster={form.character ? getCharacterImage(form.character) : undefined}>
                   Your browser does not support video playback.
                 </video>
                 <small>Play the preview and check the volume control to confirm your file contains a browser-compatible audio track.</small>
@@ -258,15 +288,13 @@ function Create({ navigate, user }) {
           </section>
 
           <aside className="publish-panel">
-            <div><p className="eyebrow">READY TO SHARE?</p><h2>Publish your combo</h2></div>
-            <label>Visibility
-              <select name="visibility" value={form.visibility} onChange={updateField}><option>Public</option><option>Private</option></select>
-            </label>
+            <div><h2>{comboId ? 'Update your combo' : 'Publish your combo'}</h2></div>
+            <SelectField label="Visibility" name="visibility" value={form.visibility} options={['Public', 'Private']} onChange={updateField} />
             <div className="form-actions">
-              <button type="button" className="secondary-button" onClick={() => navigate('/home')}>Cancel</button>
-              <button type="submit" className="publish-button">Publish Combo <span>→</span></button>
+              <button type="button" className="secondary-button" onClick={() => navigate(comboId ? '/my-combos' : '/home')}>Cancel</button>
+              <button type="submit" className="publish-button">{comboId ? 'Save Changes' : 'Publish Combo'} <span>→</span></button>
             </div>
-            {submitted && <p className="success-message" role="status">Combo ready — your form was submitted.</p>}
+            {submitted && <p className="success-message" role="status">{comboId ? 'Combo updated.' : 'Combo ready — your form was submitted.'}</p>}
             {submitError && <p className="publish-error" role="alert">{submitError}</p>}
           </aside>
         </form>

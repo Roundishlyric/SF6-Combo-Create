@@ -87,6 +87,7 @@ function Header({ navigate, active, user }) {
     <header className="home-header">
       <a className="home-brand" href="/home" onClick={(event) => go(event, '/home')}><span className="brand-mark">HK</span><span>Hadou<span>Kraft</span></span></a>
       <nav className="home-nav" aria-label="Main navigation">
+        <a className={active === 'home' ? 'active' : ''} href="/home" onClick={(event) => go(event, '/home')}>Home</a>
         {user && <a href="/create" onClick={(event) => go(event, '/create')}>Create Combo</a>}
         <a className={active === 'explore' ? 'active' : ''} href="/combos" onClick={(event) => go(event, '/combos')}>Explore</a>
         <a className={active === 'mine' ? 'active' : ''} href="/my-combos" onClick={(event) => go(event, '/my-combos')}>My Combos</a>
@@ -231,8 +232,13 @@ function Combos({ navigate, user }) {
               {results.map((combo) => (
                 <article className="explore-card" key={combo.id}>
                   <div className="explore-card-top">
-                    <div className={`fighter-avatar ${fighterColor(combo.character)}`}>
-                      <img src={getCharacterImage(combo.character)} alt={combo.character} loading="lazy" decoding="async" width="160" height="160" />
+                    <div className="combo-identities">
+                      <div className={`fighter-avatar ${fighterColor(combo.character)}`}>
+                        <img src={getCharacterImage(combo.character)} alt={`${combo.character} character`} loading="lazy" decoding="async" width="160" height="160" />
+                      </div>
+                      <button className="creator-avatar" type="button" onClick={() => navigate(`/profile/${combo.userId}`)} aria-label={`View ${combo.creator}'s profile`}>
+                        {combo.avatarUrl ? <img src={combo.avatarUrl} alt="" loading="lazy" /> : <span>{combo.creator?.charAt(0).toUpperCase()}</span>}
+                      </button>
                     </div>
                     <div><strong>{combo.character}</strong><button className="creator-link" type="button" onClick={() => navigate(`/profile/${combo.userId}`)}>by {combo.creator}</button></div>
                     <button className={combo.liked ? 'saved' : ''} onClick={() => toggleLiked(combo.id)} type="button" aria-label={user ? `${combo.liked ? 'Unlike' : 'Like'} ${combo.title}` : 'Sign in to like this combo'}>{combo.liked ? '♥' : '♡'}</button>
@@ -241,7 +247,7 @@ function Combos({ navigate, user }) {
                   <h2>{combo.title}</h2>
                   <div className="explore-notation">{combo.notation}</div>
                   {combo.video?.url && (
-                    <video className="explore-video" controls preload="none" playsInline>
+                    <video className="explore-video" controls preload="none" playsInline poster={getCharacterImage(combo.character)}>
                       <source src={combo.video.url} type={combo.video.type} />
                       Your browser does not support video playback.
                     </video>

@@ -115,6 +115,3 @@ export const updateCombo = async (comboId, combo) =>
 
 export const deleteCombo = async (comboId) =>
   request(`/api/combos/${comboId}`, { method: 'DELETE' });
-
-export const duplicateCombo = async (comboId) =>
-  (await request(`/api/combos/${comboId}/duplicate`, { method: 'POST' })).combo;

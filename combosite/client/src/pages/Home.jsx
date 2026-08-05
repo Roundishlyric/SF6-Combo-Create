@@ -67,6 +67,7 @@ function Home({ navigate, user }) {
         </a>
 
         <nav className="home-nav" aria-label="Main navigation">
+          <a className="active" href="/home" onClick={(event) => go(event, '/home')}>Home</a>
           {user && <a href="/create" onClick={(event) => go(event, '/create')}>Create Combo</a>}
           <a href="/combos" onClick={(event) => go(event, '/combos')}>Explore</a>
           <a href="/my-combos" onClick={(event) => go(event, '/my-combos')}>My Combos</a>
@@ -117,8 +118,13 @@ function Home({ navigate, user }) {
             {trendingCombos.map((combo) => (
               <article className="combo-card" key={combo.id}>
                 <div className="combo-top">
-                  <div className={`fighter-avatar ${fighterColor(combo.character)}`}>
-                    <img src={getCharacterImage(combo.character)} alt={combo.character} loading="lazy" decoding="async" width="160" height="160" />
+                  <div className="combo-identities">
+                    <div className={`fighter-avatar ${fighterColor(combo.character)}`}>
+                      <img src={getCharacterImage(combo.character)} alt={`${combo.character} character`} loading="lazy" decoding="async" width="160" height="160" />
+                    </div>
+                    <button className="creator-avatar" type="button" onClick={() => navigate(`/profile/${combo.userId}`)} aria-label={`View ${combo.creator}'s profile`}>
+                      {combo.avatarUrl ? <img src={combo.avatarUrl} alt="" loading="lazy" /> : <span>{combo.creator?.charAt(0).toUpperCase()}</span>}
+                    </button>
                   </div>
                   <div><strong>{combo.character}</strong><span>by {combo.creator}</span></div>
                   <button className={combo.liked ? 'liked' : ''} onClick={() => toggleLiked(combo.id)} aria-label={user ? `${combo.liked ? 'Unlike' : 'Like'} ${combo.title}` : 'Sign in to like this combo'}>{combo.liked ? '♥' : '♡'}</button>

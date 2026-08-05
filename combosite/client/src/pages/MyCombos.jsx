@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Header } from './Combos.jsx';
 import '../styles/Home.css';
 import '../styles/Library.css';
-import { deleteCombo, duplicateCombo, getCombos } from '../lib/api.js';
+import { deleteCombo, getCombos } from '../lib/api.js';
 import { getCharacterImage } from '../lib/characterImages.js';
 import SkeletonLoader from '../components/SkeletonLoader.jsx';
 
@@ -27,6 +27,7 @@ function MyCombos({ navigate, user }) {
   const [tab, setTab] = useState('All');
   const [query, setQuery] = useState('');
   const [menu, setMenu] = useState(null);
+  const [actionError, setActionError] = useState('');
   const combos = useMemo(() => personalCombos.filter((combo) => {
     const tabMatch = tab === 'All' || combo.status === tab;
     return tabMatch && `${combo.character} ${combo.title}`.toLowerCase().includes(query.toLowerCase());
@@ -52,16 +53,16 @@ function MyCombos({ navigate, user }) {
     return () => { active = false; };
   }, []);
 
-  const remove = async (comboId) => {
-    await deleteCombo(comboId);
-    await refreshCombos();
-    setMenu(null);
-  };
-
-  const duplicate = async (comboId) => {
-    await duplicateCombo(comboId);
-    await refreshCombos();
-    setMenu(null);
+  const remove = async (combo) => {
+    if (!window.confirm(`Delete "${combo.title}"? This combo will no longer appear in your library or Explore.`)) return;
+    try {
+      setActionError('');
+      await deleteCombo(combo.id);
+      await refreshCombos();
+      setMenu(null);
+    } catch (problem) {
+      setActionError(problem.message);
+    }
   };
 
   const publishedCount = personalCombos.filter((combo) => combo.status === 'Published').length;
@@ -90,6 +91,7 @@ function MyCombos({ navigate, user }) {
           <div className="my-combo-list">
             {loading && <SkeletonLoader variant="row" count={5} />}
             {loadError && <p className="library-message error" role="alert">{loadError}</p>}
+            {actionError && <p className="library-message error" role="alert">{actionError}</p>}
             {!loading && combos.map((combo) => (
               <article className="my-combo-row" key={combo.id}>
                 <div className={`fighter-avatar ${fighterColor(combo.character)}`}>
@@ -98,7 +100,7 @@ function MyCombos({ navigate, user }) {
                 <div className="my-combo-info"><div><span>{combo.character} · SF6</span><i className={combo.status.toLowerCase()}>{combo.status}</i></div><h2>{combo.title}</h2><code>{combo.notation}</code></div>
                 <div className="my-combo-number"><small>DAMAGE</small><strong>{combo.damage}</strong></div>
                 <div className="updated"><small>UPDATED</small><span>{relativeDate(combo.updatedAt)}</span></div>
-                <div className="row-menu-wrap"><button className="row-menu" onClick={() => setMenu(menu === combo.id ? null : combo.id)} type="button" aria-label={`Actions for ${combo.title}`}>•••</button>{menu === combo.id && <div className="menu-popover"><button type="button" onClick={() => duplicate(combo.id)}>Duplicate</button><button type="button" onClick={() => navigator.clipboard?.writeText(combo.notation)}>Copy notation</button><button className="delete-action" type="button" onClick={() => remove(combo.id)}>Delete</button></div>}</div>
+                <div className="row-menu-wrap"><button className="row-menu" onClick={() => setMenu(menu === combo.id ? null : combo.id)} type="button" aria-label={`Actions for ${combo.title}`}>•••</button>{menu === combo.id && <div className="menu-popover"><button type="button" onClick={() => navigate(`/combos/${encodeURIComponent(combo.id)}/edit`)}>Edit</button><button className="delete-action" type="button" onClick={() => remove(combo)}>Delete</button></div>}</div>
               </article>
             ))}
           </div>

@@ -5,17 +5,18 @@
   --sf-drive: #ff7a2f;
   --sf-drive-strong: #e94b21;
   --sf-gold: #f2c14e;
+  --sf-energy: #38d6b2;
   --sf-surface: #130b06;
   --sf-surface-raised: #1a0e08;
   min-height: 100vh;
   width: 100%;
-  background: radial-gradient(circle at 82% 0%, rgba(255, 122, 47, 0.13), transparent 30%), radial-gradient(circle at 12% 34%, rgba(242, 193, 78, 0.06), transparent 26%), var(--home-bg);
+  background: radial-gradient(circle at 82% 0%, rgba(255, 122, 47, 0.16), transparent 31%), radial-gradient(circle at 8% 42%, rgba(56, 214, 178, 0.055), transparent 25%), radial-gradient(circle at 45% 100%, rgba(242, 193, 78, 0.045), transparent 32%), var(--home-bg);
   color: #f8fafc;
   text-align: left;
 }
 
 /* Street Fighter 6-inspired color roles: Drive green, Super gold, and dark warm surfaces. */
-.home-page .home-header { background: rgba(11, 8, 6, .91); }
+.home-page .home-header { border-bottom-color: rgba(255, 122, 47, .18); background: linear-gradient(90deg, rgba(9,7,6,.97), rgba(20,10,6,.94), rgba(9,7,6,.97)); box-shadow: 0 12px 35px rgba(0,0,0,.22); }
 .home-page .home-brand > span:last-child span,
 .home-page .eyebrow,
 .home-page .section-heading button span,
@@ -71,8 +72,15 @@
 .home-page .difficulty-line i.expert,
 .home-page .my-combo-info i.draft { color: var(--sf-gold); background: rgba(242, 193, 78, .09); }
 .home-page .stat-icon.orange { color: var(--sf-gold); background: rgba(242, 193, 78, .11); }
-.home-page .stat-icon.blue,
-.home-page .stat-icon.purple { color: var(--sf-drive); background: rgba(255, 122, 47, .1); }
+.home-page .stat-icon.blue { color: var(--sf-energy); background: rgba(56, 214, 178, .1); }
+.home-page .stat-icon.purple { color: #c784ff; background: rgba(168, 92, 255, .1); }
+.home-page .section-heading h2,
+.home-page .library-heading h1,
+.home-page .create-heading h1 { background: linear-gradient(90deg, #fff 15%, #ffd7bd 70%, var(--sf-gold)); background-clip: text; -webkit-background-clip: text; color: transparent; }
+.home-page .combo-card,
+.home-page .explore-card,
+.home-page .form-panel,
+.home-page .my-library-panel { box-shadow: inset 0 1px rgba(255,255,255,.025), 0 14px 38px rgba(0,0,0,.14); }
 
 .home-page * { box-sizing: border-box; }
 .home-page button, .home-page a { font: inherit; }
@@ -85,7 +93,7 @@
   height: 76px;
   padding: 0 max(24px, calc((100% - 1180px) / 2));
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   border-bottom: 1px solid var(--home-border);
   background: rgba(7, 9, 15, 0.88);
@@ -96,7 +104,7 @@
 .avatar { overflow: hidden; }.avatar img { width: 100%; height: 100%; object-fit: cover; }
 .home-brand > span:last-child span { color: #ff5538; }
 .brand-mark { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 11px; background: linear-gradient(135deg, #ff3d21, #ff8a32); font-size: .74rem; font-style: italic; box-shadow: 0 8px 24px rgba(255, 75, 36, .25); }
-.home-nav { display: flex; align-items: center; gap: 34px; height: 100%; }
+.home-nav { display: flex; align-items: center; justify-self: start; gap: clamp(18px, 2.5vw, 34px); height: 100%; margin-left: clamp(28px, 5vw, 72px); }
 .home-nav a { position: relative; display: grid; place-items: center; height: 100%; color: #8f98aa; text-decoration: none; font-size: .86rem; font-weight: 700; }
 .home-nav a:hover, .home-nav a.active { color: white; }
 .home-nav a.active::after { content: ''; position: absolute; bottom: 0; width: 28px; height: 3px; border-radius: 4px 4px 0 0; background: #ff5538; }
@@ -109,7 +117,7 @@
 .home-main { width: min(1180px, calc(100% - 48px)); margin: 0 auto; padding: 46px 0 70px; }
 .welcome-row { display: flex; align-items: end; justify-content: space-between; margin-bottom: 28px; }
 .eyebrow { margin: 0 0 8px; color: #ff694e; font-size: .68rem; font-weight: 900; letter-spacing: .18em; }
-.welcome-row h1 { margin: 0; color: white; font-size: clamp(1.8rem, 4vw, 2.7rem); line-height: 1.08; font-weight: 800; letter-spacing: -.04em; }
+.welcome-row h1 { margin: 0; color: white; font-size: clamp(1.55rem, 3vw, 2.25rem); line-height: 1.12; font-weight: 800; letter-spacing: -.035em; }
 .welcome-row > div > p:last-child { margin-top: 10px; color: #929bad; font-size: .92rem; }
 .create-button, .publish-button, .follow-button { padding: 13px 20px; border: 0; border-radius: 10px; background: linear-gradient(100deg, #ff4328, #ff7433); color: white; font-weight: 800; cursor: pointer; box-shadow: 0 10px 25px rgba(255, 64, 38, .2); transition: transform .18s ease, box-shadow .18s ease, filter .18s ease; }
 .create-button:hover, .publish-button:hover, .follow-button:hover { transform: translateY(-1px); box-shadow: 0 12px 28px rgba(255, 64, 38, .28); filter: brightness(1.03); }
@@ -142,6 +150,7 @@
 .combo-card:hover { transform: translateY(-3px); border-color: rgba(255, 93, 57, .35); }
 .combo-top { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 11px; }
 .fighter-avatar { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 50%; overflow: hidden; background: #111521; }.fighter-avatar img { width: 100%; height: 100%; object-fit: cover; object-position: center; }
+.combo-identities { display: flex; align-items: center; min-width: 70px; }.combo-identities .creator-avatar { display: grid; place-items: center; width: 32px; height: 32px; margin-left: -8px; overflow: hidden; border: 2px solid #121620; border-radius: 50%; background: linear-gradient(145deg, #ff613d, #5e2b86); color: white; font-size: .65rem; font-weight: 900; cursor: pointer; transition: transform .18s, border-color .18s; }.combo-identities .creator-avatar:hover { z-index: 2; border-color: #ff704c; transform: translateY(-2px); }.combo-identities .creator-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .fighter-avatar.orange { background: #c84d21; }.fighter-avatar.purple { background: #783ea4; }.fighter-avatar.blue { background: #246da7; }
 .combo-top > div:nth-child(2) { display: flex; flex-direction: column; }.combo-top strong { font-size: .86rem; }.combo-top span { color: #747e90; font-size: .64rem; }.combo-top button { border: 0; background: transparent; color: #8c95a5; font-size: 1.3rem; cursor: pointer; }
 .combo-top button.liked { color: #ff6245; }

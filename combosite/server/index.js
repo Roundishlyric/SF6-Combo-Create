@@ -233,7 +233,7 @@ const server = createServer(async (request, response) => {
       if (!profile) return send(response, 404, { error: 'Player not found.' });
       const ownProfile = profile.id === auth.user.id;
       const { rows } = await query(`SELECT data || jsonb_build_object('id',id,'userId',user_id,'createdAt',created_at,'updatedAt',updated_at) AS combo
-        FROM combos WHERE user_id=$1 ${ownProfile ? '' : "AND data->>'status'='Published' AND data->>'visibility'='Public'"} ORDER BY updated_at DESC`, [profile.id]);
+        FROM combos WHERE user_id=$1 AND deleted_at IS NULL ${ownProfile ? '' : "AND data->>'status'='Published' AND data->>'visibility'='Public'"} ORDER BY updated_at DESC`, [profile.id]);
       return send(response, 200, { user: profile, combos: rows.map((row) => row.combo) });
     }
     const followMatch = path.match(/^\/api\/users\/([^/]+)\/follow$/);
@@ -271,15 +271,15 @@ const server = createServer(async (request, response) => {
       return send(response, 201, { video: { url: `/uploads/${fileName}`, name: decodeURIComponent(String(request.headers['x-file-name'] || 'combo-video')), size: bytes, type: contentType } });
     }
     if (request.method === 'GET' && path === '/api/combos') {
-      const { rows: combos } = await query(`SELECT data || jsonb_build_object('id',id,'userId',user_id,'createdAt',created_at,'updatedAt',updated_at) AS combo FROM combos WHERE user_id=$1 ORDER BY updated_at DESC`, [auth.user.id]);
+      const { rows: combos } = await query(`SELECT data || jsonb_build_object('id',id,'userId',user_id,'createdAt',created_at,'updatedAt',updated_at) AS combo FROM combos WHERE user_id=$1 AND deleted_at IS NULL ORDER BY updated_at DESC`, [auth.user.id]);
       return send(response, 200, { combos: combos.map((row) => row.combo) });
     }
     if (request.method === 'GET' && path === '/api/explore') {
       const { rows } = await query(`SELECT c.data || jsonb_build_object('id',c.id,'userId',c.user_id,'createdAt',c.created_at,'updatedAt',c.updated_at,
-        'creator',u.name,'likes',count(l.user_id),'liked',coalesce(bool_or(l.user_id=$1),false)) AS combo
+        'creator',u.name,'avatarUrl',coalesce(u.avatar_url,''),'likes',count(l.user_id),'liked',coalesce(bool_or(l.user_id=$1),false)) AS combo
         FROM combos c JOIN users u ON u.id=c.user_id LEFT JOIN likes l ON l.combo_id=c.id
-        WHERE c.data->>'status'='Published' AND c.data->>'visibility'='Public'
-        GROUP BY c.id,u.name ORDER BY c.created_at DESC`, [auth?.user.id || '']);
+        WHERE c.deleted_at IS NULL AND c.data->>'status'='Published' AND c.data->>'visibility'='Public'
+        GROUP BY c.id,u.name,u.avatar_url ORDER BY c.created_at DESC`, [auth?.user.id || '']);
       return send(response, 200, { combos: rows.map((row) => row.combo) });
     }
     if (request.method === 'POST' && path === '/api/combos') {
@@ -302,20 +302,20 @@ const server = createServer(async (request, response) => {
       delete protectedFields.createdAt;
       delete protectedFields.saves;
       const updatedAt = new Date().toISOString();
-      const { rows: [result] } = await query(`UPDATE combos SET data=data || $1::jsonb, updated_at=$2 WHERE id=$3 AND user_id=$4
+      const { rows: [result] } = await query(`UPDATE combos SET data=data || $1::jsonb, updated_at=$2 WHERE id=$3 AND user_id=$4 AND deleted_at IS NULL
         RETURNING data || jsonb_build_object('id',id,'userId',user_id,'createdAt',created_at,'updatedAt',updated_at) AS combo`,
       [{ ...protectedFields, game: 'Street Fighter 6' }, updatedAt, comboMatch[1], auth.user.id]);
       return result ? send(response, 200, { combo: result.combo }) : send(response, 404, { error: 'Combo not found.' });
     }
     if (comboMatch && request.method === 'DELETE') {
-      const result = await query('DELETE FROM combos WHERE id=$1 AND user_id=$2', [comboMatch[1], auth.user.id]);
+      const result = await query('UPDATE combos SET deleted_at=now() WHERE id=$1 AND user_id=$2 AND deleted_at IS NULL', [comboMatch[1], auth.user.id]);
       if (!result.rowCount) return send(response, 404, { error: 'Combo not found.' });
       return send(response, 200, { message: 'Combo deleted.' });
     }
 
     const likeMatch = path.match(/^\/api\/combos\/([^/]+)\/like$/);
     if (likeMatch && request.method === 'POST') {
-      const { rows: [combo] } = await query(`SELECT id FROM combos WHERE id=$1 AND data->>'status'='Published' AND data->>'visibility'='Public'`, [likeMatch[1]]);
+      const { rows: [combo] } = await query(`SELECT id FROM combos WHERE id=$1 AND deleted_at IS NULL AND data->>'status'='Published' AND data->>'visibility'='Public'`, [likeMatch[1]]);
       if (!combo) return send(response, 404, { error: 'Published combo not found.' });
       const result = await transaction(async (client) => {
         const existing = await client.query('DELETE FROM likes WHERE combo_id=$1 AND user_id=$2 RETURNING user_id', [combo.id, auth.user.id]);
@@ -325,18 +325,6 @@ const server = createServer(async (request, response) => {
         return { liked: !existing.rowCount, likes: count };
       });
       return send(response, 200, result);
-    }
-
-    const duplicateMatch = path.match(/^\/api\/combos\/([^/]+)\/duplicate$/);
-    if (duplicateMatch && request.method === 'POST') {
-      const { rows: [row] } = await query(`SELECT data || jsonb_build_object('id',id,'userId',user_id,'createdAt',created_at,'updatedAt',updated_at) AS combo FROM combos WHERE id=$1 AND user_id=$2`, [duplicateMatch[1], auth.user.id]);
-      const source = row?.combo;
-      if (!source) return send(response, 404, { error: 'Combo not found.' });
-      const now = new Date().toISOString();
-      const copy = { ...source, id: randomUUID(), title: `${source.title} (Copy)`, status: 'Draft', saves: 0, createdAt: now, updatedAt: now };
-      const { id, userId, createdAt, updatedAt, ...data } = copy;
-      await query('INSERT INTO combos (id,user_id,data,created_at,updated_at) VALUES ($1,$2,$3,$4,$5)', [id,userId,data,createdAt,updatedAt]);
-      return send(response, 201, { combo: copy });
     }
 
     return send(response, 404, { error: 'Route not found.' });

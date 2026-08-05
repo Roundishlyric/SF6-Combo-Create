@@ -59,6 +59,9 @@ function App() {
     page = <Login navigate={navigate} onLogin={login} />;
   } else if (path === '/create') {
     page = <Create navigate={navigate} user={user} />;
+  } else if (path.startsWith('/combos/') && path.endsWith('/edit')) {
+    const comboId = decodeURIComponent(path.slice('/combos/'.length, -'/edit'.length));
+    page = <Create navigate={navigate} user={user} comboId={comboId} />;
   } else if (path === '/my-combos') {
     page = <MyCombos navigate={navigate} user={user} />;
   } else if (path === '/profile' || path.startsWith('/profile/')) {

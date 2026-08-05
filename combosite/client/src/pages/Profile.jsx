@@ -82,6 +82,7 @@ function Profile({ navigate, user, profileId, onLogout, onUserUpdate }) {
           <span>Hadou<span>Kraft</span></span>
         </a>
         <nav className="home-nav" aria-label="Main navigation">
+          <a href="/home" onClick={(event) => go(event, '/home')}>Home</a>
           <a href="/create" onClick={(event) => go(event, '/create')}>Create Combo</a>
           <a href="/combos" onClick={(event) => go(event, '/combos')}>Explore</a>
           <a href="/my-combos" onClick={(event) => go(event, '/my-combos')}>My Combos</a>
