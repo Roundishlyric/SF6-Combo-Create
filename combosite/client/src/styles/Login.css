@@ -149,6 +149,29 @@
   font-size: 1.7rem;
 }
 
+.login-card:has(.login-form) h2,
+.login-card:has(.register-form) h2 {
+  font-family: "Courier New", Courier, monospace;
+  font-size: clamp(2.5rem, 5vw, 4.25rem);
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.06em;
+  text-transform: uppercase;
+  -webkit-font-smoothing: none;
+  text-rendering: geometricPrecision;
+}
+
+.login-heading-cursor {
+  display: inline-block;
+  margin-left: 0.06em;
+  color: var(--accent-2);
+  animation: login-cursor-blink 1s steps(1, end) infinite;
+}
+
+@keyframes login-cursor-blink {
+  50% { opacity: 0; }
+}
+
 .login-card p {
   margin: 1rem 0 1.5rem;
   color: var(--muted);

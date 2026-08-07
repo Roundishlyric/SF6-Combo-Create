@@ -1,0 +1,16 @@
+.confirm-backdrop { position: fixed; z-index: 1200; inset: 0; display: grid; place-items: center; padding: 20px; background: rgba(3,4,7,.8); backdrop-filter: blur(8px); }
+.confirm-dialog { position: relative; width: min(430px, 100%); box-sizing: border-box; overflow: hidden; padding: 34px; border: 1px solid rgba(255,105,67,.25); border-radius: 20px; background: radial-gradient(circle at 100% 0, rgba(255,81,42,.13), transparent 42%), #0d1017; box-shadow: 0 28px 80px rgba(0,0,0,.62); color: #f7f8fa; text-align: center; }
+.confirm-dialog::before { content: ''; position: absolute; inset: 0 0 auto; height: 3px; background: linear-gradient(90deg, #ff4026, #ff9a3c); }
+.confirm-close { position: absolute; top: 14px; right: 14px; width: 32px; height: 32px; border: 1px solid rgba(255,255,255,.08); border-radius: 8px; background: rgba(255,255,255,.03); color: #8992a3; font-size: 1.2rem; cursor: pointer; }
+.confirm-icon { display: grid; place-items: center; width: 58px; height: 58px; margin: 0 auto 20px; border: 1px solid rgba(255,153,61,.3); border-radius: 17px; background: rgba(255,137,42,.1); color: #ff9a3c; font-size: 1.4rem; font-weight: 900; }
+.confirm-icon.danger { border-color: rgba(255,76,55,.32); background: rgba(255,60,40,.1); color: #ff684e; }
+.confirm-eyebrow { margin: 0 0 7px !important; color: #ff7954 !important; font-size: .5rem !important; font-weight: 900; letter-spacing: .16em; }
+.confirm-dialog h2 { margin: 0; color: #f7f8fa; font-size: 1.35rem; }
+.confirm-dialog > p:not(.confirm-eyebrow) { max-width: 330px; margin: 12px auto 0; color: #8e97a7; font-size: .76rem; line-height: 1.65; }
+.confirm-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 26px; }
+.confirm-actions button { height: 44px; border-radius: 10px; font-size: .7rem; font-weight: 850; cursor: pointer; }
+.confirm-actions button:disabled { cursor: wait; opacity: .65; }
+.confirm-cancel { border: 1px solid rgba(255,255,255,.1); background: #151922; color: #c1c6cf; }
+.confirm-submit { border: 0; background: linear-gradient(100deg, #f27b28, #ff9c3c); color: white; box-shadow: 0 9px 25px rgba(255,126,36,.2); }
+.confirm-submit.danger { background: linear-gradient(100deg, #e93828, #ff603d); box-shadow: 0 9px 25px rgba(255,65,36,.2); }
+.confirm-actions button:hover:not(:disabled), .confirm-close:hover:not(:disabled) { filter: brightness(1.12); }

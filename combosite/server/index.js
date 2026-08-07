@@ -18,6 +18,14 @@ const imageTypes = { 'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.
 const sessionTtlDays = Math.max(1, Math.min(90, Number(process.env.SESSION_TTL_DAYS) || 7));
 const sessionTtlMs = sessionTtlDays * 24 * 60 * 60 * 1000;
 const trustProxy = process.env.TRUST_PROXY === 'true';
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+class RequestError extends Error {
+  constructor(message, status = 400) {
+    super(message);
+    this.status = status;
+  }
+}
 
 const send = (response, status, body, extraHeaders = {}) => {
   response.writeHead(status, {
@@ -35,12 +43,12 @@ const readBody = async (request) => {
   let body = '';
   for await (const chunk of request) {
     body += chunk;
-    if (body.length > 1_000_000) throw new Error('Request body is too large.');
+    if (body.length > 1_000_000) throw new RequestError('Request body is too large.', 413);
   }
   try {
     return body ? JSON.parse(body) : {};
   } catch {
-    throw new Error('Request body must be valid JSON.');
+    throw new RequestError('Request body must be valid JSON.');
   }
 };
 
@@ -107,9 +115,17 @@ const authenticate = async (request) => {
 };
 
 const validateCombo = (body) => {
-  const missing = ['character', 'title', 'difficulty', 'notation'].find((field) => !String(body[field] || '').trim());
-  if (missing) throw new Error(`${missing} is required.`);
-  if (body.game && body.game !== 'Street Fighter 6') throw new Error('Only Street Fighter 6 is supported.');
+  const character = String(body.character || '').trim();
+  const title = String(body.title || '').trim();
+  const difficulty = String(body.difficulty || '').trim();
+  const notation = String(body.notation || '').trim();
+  const damage = String(body.damage || '').trim();
+  if (!character) throw new RequestError('Character is required.');
+  if (title.length < 3 || title.length > 80) throw new RequestError('Title must be between 3 and 80 characters.');
+  if (!difficulty) throw new RequestError('Difficulty is required.');
+  if (notation.length < 2 || notation.length > 500) throw new RequestError('Notation must be between 2 and 500 characters.');
+  if (!/^\d+$/.test(damage) || Number(damage) < 1 || Number(damage) > 999999) throw new RequestError('Damage must be a positive whole number up to 999999.');
+  if (body.game && body.game !== 'Street Fighter 6') throw new RequestError('Only Street Fighter 6 is supported.');
 };
 
 const server = createServer(async (request, response) => {
@@ -166,7 +182,11 @@ const server = createServer(async (request, response) => {
       const name = String(body.name || '').trim();
       const email = String(body.email || '').trim().toLowerCase();
       const password = String(body.password || '');
-      if (!name || !email || password.length < 6) return send(response, 400, { error: 'Name, email, and a password of at least 6 characters are required.' });
+      if (name.length < 2 || name.length > 60) return send(response, 400, { error: 'Name must be between 2 and 60 characters.' });
+      if (email.length > 254 || !emailPattern.test(email)) return send(response, 400, { error: 'Enter a valid email address.' });
+      if (password.length < 8 || password.length > 128 || !/[a-z]/.test(password) || !/[A-Z]/.test(password) || !/\d/.test(password)) {
+        return send(response, 400, { error: 'Password must be at least 8 characters and include uppercase, lowercase, and a number.' });
+      }
 
       const passwordData = await hashPassword(password);
       const user = { id: randomUUID(), name, email, passwordHash: passwordData.hash, passwordSalt: passwordData.salt, createdAt: new Date().toISOString() };
@@ -183,6 +203,7 @@ const server = createServer(async (request, response) => {
     if (request.method === 'POST' && path === '/api/auth/login') {
       const body = await readBody(request);
       const email = String(body.email || '').trim().toLowerCase();
+      if (email.length > 254 || !emailPattern.test(email) || !String(body.password || '')) return send(response, 400, { error: 'Enter a valid email and password.' });
       const [addressLimit, accountLimit] = await Promise.all([
         consumeRateLimit(request, 'login-address', 10, 15 * 60 * 1000),
         consumeRateLimit(request, 'login-account', 5, 15 * 60 * 1000, email),
@@ -214,6 +235,16 @@ const server = createServer(async (request, response) => {
     if (request.method === 'POST' && path === '/api/notifications/read') {
       await query('UPDATE notifications SET read_at=now() WHERE user_id=$1 AND read_at IS NULL', [auth.user.id]);
       return send(response, 200, { message: 'Notifications marked as read.' });
+    }
+    const notificationReadMatch = path.match(/^\/api\/notifications\/([^/]+)\/read$/);
+    if (notificationReadMatch && request.method === 'POST') {
+      const { rows: [notification] } = await query('UPDATE notifications SET read_at=coalesce(read_at,now()) WHERE id=$1 AND user_id=$2 RETURNING id,read_at AS "readAt"', [decodeURIComponent(notificationReadMatch[1]), auth.user.id]);
+      return notification ? send(response, 200, { notification }) : send(response, 404, { error: 'Notification not found.' });
+    }
+    const notificationMatch = path.match(/^\/api\/notifications\/([^/]+)$/);
+    if (notificationMatch && request.method === 'DELETE') {
+      const result = await query('DELETE FROM notifications WHERE id=$1 AND user_id=$2', [decodeURIComponent(notificationMatch[1]), auth.user.id]);
+      return result.rowCount ? send(response, 200, { message: 'Notification deleted.' }) : send(response, 404, { error: 'Notification not found.' });
     }
     if (request.method === 'POST' && path === '/api/profile/image') {
       const kind = url.searchParams.get('kind');
@@ -317,6 +348,14 @@ const server = createServer(async (request, response) => {
     }
 
     const comboMatch = path.match(/^\/api\/combos\/([^/]+)$/);
+    if (comboMatch && request.method === 'GET') {
+      const { rows: [result] } = await query(`SELECT c.data || jsonb_build_object('id',c.id,'userId',c.user_id,'createdAt',c.created_at,'updatedAt',c.updated_at,
+        'creator',u.name,'avatarUrl',coalesce(u.avatar_url,''),'likes',(SELECT count(*)::int FROM likes WHERE combo_id=c.id),
+        'liked',EXISTS(SELECT 1 FROM likes WHERE combo_id=c.id AND user_id=$1)) AS combo
+        FROM combos c JOIN users u ON u.id=c.user_id WHERE c.id=$2 AND c.deleted_at IS NULL
+        AND (c.user_id=$1 OR (c.data->>'status'='Published' AND c.data->>'visibility'='Public'))`, [auth.user.id, decodeURIComponent(comboMatch[1])]);
+      return result ? send(response, 200, { combo: result.combo }) : send(response, 404, { error: 'Combo not found.' });
+    }
     if (comboMatch && request.method === 'PUT') {
       const body = await readBody(request);
       validateCombo(body);
@@ -357,7 +396,7 @@ const server = createServer(async (request, response) => {
     return send(response, 404, { error: 'Route not found.' });
   } catch (error) {
     console.error(error);
-    return send(response, 500, { error: 'The server could not complete the request.' });
+    return send(response, error.status || 500, { error: error.status ? error.message : 'The server could not complete the request.' });
   }
 });
 

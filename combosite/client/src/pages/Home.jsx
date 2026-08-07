@@ -53,6 +53,7 @@ function Home({ navigate, user }) {
     }
   };
   const totalLikes = myCombos.reduce((sum, combo) => sum + Number(combo.saves || 0), 0);
+  const videoCount = myCombos.filter((combo) => Boolean(combo.video)).length;
 
   const go = (event, path) => {
     event.preventDefault();
@@ -105,6 +106,7 @@ function Home({ navigate, user }) {
         {user && <section className="stats-grid" aria-label="Your statistics">
           <article><span className="stat-icon orange">✦</span><div><strong>{myCombos.length}</strong><span>Combos created</span></div></article>
           <article><span className="stat-icon blue">♥</span><div><strong>{totalLikes}</strong><span>Likes received</span></div></article>
+          <article><span className="stat-icon purple">▶</span><div><strong>{videoCount}</strong><span>Videos uploaded</span></div></article>
         </section>}
 
         <section className="combo-section">
@@ -130,6 +132,12 @@ function Home({ navigate, user }) {
                   <div><strong>{combo.character}</strong><span>by {combo.creator}</span></div>
                   <button className={combo.liked ? 'liked' : ''} onClick={() => toggleLiked(combo.id)} aria-label={user ? `${combo.liked ? 'Unlike' : 'Like'} ${combo.title}` : 'Sign in to like this combo'}>{combo.liked ? '♥' : '♡'}</button>
                 </div>
+                {combo.video?.url && (
+                  <video className="home-combo-video" controls preload="metadata" playsInline poster={getCharacterImage(combo.character)}>
+                    <source src={combo.video.url} type={combo.video.type} />
+                    Your browser does not support video playback.
+                  </video>
+                )}
                 <h3>{combo.title}</h3>
                 <div className="combo-inputs">{combo.notation}</div>
                 <div className="combo-meta">

@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import '../styles/Home.css';
 import '../styles/Library.css';
-import sf6Art from '../assets/sf6-optimized.jpg';
 import { getExploreCombos, toggleComboLike, toggleFollow } from '../lib/api.js';
 import { getCharacterImage } from '../lib/characterImages.js';
 import SkeletonLoader from '../components/SkeletonLoader.jsx';
@@ -210,7 +209,7 @@ function Combos({ navigate, user }) {
       <Header navigate={navigate} active="explore" user={user} />
       <main className="library-main">
         <section className="explore-hero" aria-label="Explore featured combos">
-          <img src={sf6Art} alt="Street Fighter 6 roster artwork" fetchPriority="high" />
+          <img src="/images/streeto.jpg" alt="Street Fighter artwork" fetchPriority="high" />
           <div className="explore-hero-overlay" />
           <div className="explore-hero-copy">
             <span className="eyebrow">FEATURED ROUTES</span>

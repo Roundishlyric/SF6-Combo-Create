@@ -5,6 +5,7 @@ import '../styles/Library.css';
 import { deleteCombo, getCombos } from '../lib/api.js';
 import { getCharacterImage } from '../lib/characterImages.js';
 import SkeletonLoader from '../components/SkeletonLoader.jsx';
+import ConfirmDialog from '../components/ConfirmDialog.jsx';
 
 const fighterColor = (fighter) => {
   if (['Ken', 'Marisa', 'Dhalsim'].includes(fighter)) return 'orange';
@@ -28,6 +29,8 @@ function MyCombos({ navigate, user }) {
   const [query, setQuery] = useState('');
   const [menu, setMenu] = useState(null);
   const [actionError, setActionError] = useState('');
+  const [pendingDelete, setPendingDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
   const combos = useMemo(() => personalCombos.filter((combo) => {
     const tabMatch = tab === 'All' || combo.status === tab;
     return tabMatch && `${combo.character} ${combo.title}`.toLowerCase().includes(query.toLowerCase());
@@ -54,14 +57,17 @@ function MyCombos({ navigate, user }) {
   }, []);
 
   const remove = async (combo) => {
-    if (!window.confirm(`Delete "${combo.title}"? This combo will no longer appear in your library or Explore.`)) return;
+    setDeleting(true);
     try {
       setActionError('');
       await deleteCombo(combo.id);
       await refreshCombos();
       setMenu(null);
+      setPendingDelete(null);
     } catch (problem) {
       setActionError(problem.message);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -71,6 +77,7 @@ function MyCombos({ navigate, user }) {
 
   return (
     <div className="home-page library-page">
+      <ConfirmDialog open={Boolean(pendingDelete)} title="Delete this combo?" message={pendingDelete ? `“${pendingDelete.title}” will be removed from your library and Explore. This action cannot be undone.` : ''} confirmLabel="Delete Combo" busy={deleting} danger onConfirm={() => remove(pendingDelete)} onCancel={() => setPendingDelete(null)} />
       <Header navigate={navigate} active="mine" user={user} />
       <main className="library-main">
         <section className="library-heading my-heading">
@@ -100,7 +107,7 @@ function MyCombos({ navigate, user }) {
                 <div className="my-combo-info"><div><span>{combo.character} · SF6</span><i className={combo.status.toLowerCase()}>{combo.status}</i></div><h2>{combo.title}</h2><code>{combo.notation}</code></div>
                 <div className="my-combo-number"><small>DAMAGE</small><strong>{combo.damage}</strong></div>
                 <div className="updated"><small>UPDATED</small><span>{relativeDate(combo.updatedAt)}</span></div>
-                <div className="row-menu-wrap"><button className="row-menu" onClick={() => setMenu(menu === combo.id ? null : combo.id)} type="button" aria-label={`Actions for ${combo.title}`}>•••</button>{menu === combo.id && <div className="menu-popover"><button type="button" onClick={() => navigate(`/combos/${encodeURIComponent(combo.id)}/edit`)}>Edit</button><button className="delete-action" type="button" onClick={() => remove(combo)}>Delete</button></div>}</div>
+                <div className="row-menu-wrap"><button className="row-menu" onClick={() => setMenu(menu === combo.id ? null : combo.id)} type="button" aria-label={`Actions for ${combo.title}`}>•••</button>{menu === combo.id && <div className="menu-popover"><button type="button" onClick={() => navigate(`/combos/${encodeURIComponent(combo.id)}/edit`)}>Edit</button><button className="delete-action" type="button" onClick={() => setPendingDelete(combo)}>Delete</button></div>}</div>
               </article>
             ))}
           </div>

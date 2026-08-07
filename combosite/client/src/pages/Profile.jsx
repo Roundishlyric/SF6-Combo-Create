@@ -154,6 +154,12 @@ function Profile({ navigate, user, profileId, onLogout, onUserUpdate }) {
                     <span><small>DAMAGE</small><strong>{combo.damage || '—'}</strong></span>
                     <span><small>LIKES</small><strong>{combo.likes ?? combo.saves ?? 0}</strong></span>
                   </div>
+                  {combo.video?.url && (
+                    <video className="profile-combo-video" controls preload="metadata" playsInline poster={getCharacterImage(combo.character)}>
+                      <source src={combo.video.url} type={combo.video.type} />
+                      Your browser does not support video playback.
+                    </video>
+                  )}
                 </article>
               ))}
             </div>

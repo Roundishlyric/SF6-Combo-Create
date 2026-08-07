@@ -4,6 +4,7 @@ import '../styles/Create.css';
 import { getCombos, saveCombo, updateCombo, uploadVideo } from '../lib/api.js';
 import { getCharacterImage } from '../lib/characterImages.js';
 import Notifications from '../components/Notifications.jsx';
+import ConfirmDialog from '../components/ConfirmDialog.jsx';
 
 const initialForm = {
   character: '',
@@ -52,6 +53,8 @@ function Create({ navigate, user, comboId = null }) {
   const [submitError, setSubmitError] = useState('');
   const [existingVideo, setExistingVideo] = useState(null);
   const [existingStatus, setExistingStatus] = useState('Published');
+  const [showPublishConfirm, setShowPublishConfirm] = useState(false);
+  const [publishing, setPublishing] = useState(false);
 
   useEffect(() => {
     if (!comboId) return undefined;
@@ -92,11 +95,27 @@ function Create({ navigate, user, comboId = null }) {
       setCharacterOpen(true);
       return;
     }
-    const confirmed = window.confirm(comboId
-      ? `Save changes to "${form.title.trim()}"?`
-      : `Publish "${form.title.trim()}" as a ${form.visibility.toLowerCase()} combo?`);
-    if (!confirmed) return;
+    const title = form.title.trim();
+    const notation = form.notation.trim();
+    const damage = form.damage.trim();
+    if (title.length < 3 || title.length > 80) {
+      setSubmitError('Title must be between 3 and 80 characters.');
+      return;
+    }
+    if (notation.length < 2 || notation.length > 500) {
+      setSubmitError('Notation must be between 2 and 500 characters.');
+      return;
+    }
+    if (!/^\d+$/.test(damage) || Number(damage) < 1 || Number(damage) > 999999) {
+      setSubmitError('Damage must be a positive whole number up to 999999.');
+      return;
+    }
+    setForm((current) => ({ ...current, title, notation, damage }));
+    setShowPublishConfirm(true);
+  };
 
+  const confirmSubmit = async () => {
+    setPublishing(true);
     try {
       const uploadedVideo = video ? await uploadVideo(video) : null;
       const combo = {
@@ -107,9 +126,13 @@ function Create({ navigate, user, comboId = null }) {
       if (comboId) await updateCombo(comboId, combo);
       else await saveCombo(combo);
       setSubmitted(true);
+      setShowPublishConfirm(false);
       window.setTimeout(() => navigate('/my-combos'), 650);
     } catch (problem) {
       setSubmitError(problem.message);
+      setShowPublishConfirm(false);
+    } finally {
+      setPublishing(false);
     }
   };
 
@@ -143,6 +166,7 @@ function Create({ navigate, user, comboId = null }) {
 
   return (
     <div className="home-page create-page">
+      <ConfirmDialog open={showPublishConfirm} title={comboId ? 'Save these changes?' : 'Publish this combo?'} message={comboId ? `Your updates to “${form.title.trim()}” will be saved.` : `“${form.title.trim()}” will be published as a ${form.visibility.toLowerCase()} combo.`} confirmLabel={comboId ? 'Save Changes' : 'Publish Combo'} busy={publishing} onConfirm={confirmSubmit} onCancel={() => setShowPublishConfirm(false)} />
       <header className="home-header">
         <a className="home-brand" href="/home" onClick={(event) => go(event, '/home')}>
           <span className="brand-mark">HK</span>
@@ -223,11 +247,11 @@ function Create({ navigate, user, comboId = null }) {
                 {characterError && <small className="field-error">Choose a character from the list.</small>}
               </label>
               <label className="wide">Combo title
-                <input name="title" value={form.title} onChange={updateField} placeholder="e.g. Corner carry punish" required />
+                <input name="title" value={form.title} onChange={updateField} placeholder="e.g. Corner carry punish" minLength="3" maxLength="80" required />
               </label>
               <SelectField label="Difficulty" name="difficulty" value={form.difficulty} options={['Beginner', 'Intermediate', 'Advanced', 'Expert']} onChange={updateField} />
               <label>Damage
-                <div className="input-suffix"><input name="damage" value={form.damage} onChange={updateField} inputMode="numeric" placeholder="3420" /><span>DMG</span></div>
+                <div className="input-suffix"><input name="damage" value={form.damage} onChange={updateField} type="number" inputMode="numeric" min="1" max="999999" step="1" placeholder="3420" required /><span>DMG</span></div>
               </label>
             </div>
           </section>
@@ -238,8 +262,7 @@ function Create({ navigate, user, comboId = null }) {
               <div><h2>Input notation</h2></div>
             </div>
             <label>Combo sequence
-              <textarea name="notation" value={form.notation} onChange={updateField} placeholder="2MP  ·  5HP  ·  DR  ·  5HP  ·  623HP" required />
-              <small>Tip: separate inputs with a dot or comma for easier reading.</small>
+              <textarea name="notation" value={form.notation} onChange={updateField} placeholder="2MP  ·  5HP  ·  DR  ·  5HP  ·  623HP" minLength="2" maxLength="500" required />
             </label>
             <div className="notation-help"><strong>Quick notation</strong><span>2 = Down</span><span>5 = Neutral</span><span>6 = Forward</span><span>DR = Drive Rush</span></div>
           </section>

@@ -11,9 +11,14 @@ function Login({ navigate, onLogin }) {
   const submit = async (event) => {
     event.preventDefault();
     setError('');
+    const email = form.email.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !form.password) {
+      setError('Enter a valid email and password.');
+      return;
+    }
     setSubmitting(true);
     try {
-      await onLogin(form);
+      await onLogin({ ...form, email });
     } catch (problem) {
       setError(problem.message);
     } finally {
@@ -26,13 +31,13 @@ function Login({ navigate, onLogin }) {
       heroHeading="Log in and pick up where your best matches left off."
       heroParagraph="Save your favorite sequences, follow creators, and keep your training routine moving."
       heroImage={sf6}
-      cardHeading="Welcome back"
+      cardHeading={<>Welcome Back<span className="login-heading-cursor" aria-hidden="true">_</span></>}
       cardDescription="Sign in to your account and continue building."
     >
       <form className="login-form" onSubmit={submit}>
         <label className="login-label">
           Email
-          <input type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} autoComplete="email" placeholder="Enter your email" required />
+          <input type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} autoComplete="email" placeholder="Enter your email" maxLength="254" required />
         </label>
 
         <label className="login-label">
