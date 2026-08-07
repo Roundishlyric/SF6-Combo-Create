@@ -3,6 +3,7 @@ import '../styles/Home.css';
 import '../styles/Create.css';
 import { getCombos, saveCombo, updateCombo, uploadVideo } from '../lib/api.js';
 import { getCharacterImage } from '../lib/characterImages.js';
+import Notifications from '../components/Notifications.jsx';
 
 const initialForm = {
   character: '',
@@ -156,7 +157,7 @@ function Create({ navigate, user, comboId = null }) {
         </nav>
 
         <div className="home-user">
-          <button className="icon-button" type="button" aria-label="Notifications">●</button>
+          <Notifications navigate={navigate} />
           <button className="avatar" type="button" aria-label="Open profile" onClick={() => navigate('/profile')}>{user.avatarUrl ? <img src={user.avatarUrl} alt="" /> : user.name.charAt(0).toUpperCase()}</button>
         </div>
       </header>

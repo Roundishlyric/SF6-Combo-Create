@@ -205,6 +205,16 @@ const server = createServer(async (request, response) => {
       await query('DELETE FROM sessions WHERE token=$1', [auth.token]);
       return send(response, 200, { message: 'Logged out.' });
     }
+    if (request.method === 'GET' && path === '/api/notifications') {
+      const { rows } = await query(`SELECT n.id,n.type,n.combo_id AS "comboId",n.data,n.created_at AS "createdAt",n.read_at AS "readAt",
+        a.id AS "actorId",a.name AS "actorName",a.avatar_url AS "actorAvatarUrl"
+        FROM notifications n LEFT JOIN users a ON a.id=n.actor_id WHERE n.user_id=$1 ORDER BY n.created_at DESC LIMIT 40`, [auth.user.id]);
+      return send(response, 200, { notifications: rows, unread: rows.filter((item) => !item.readAt).length });
+    }
+    if (request.method === 'POST' && path === '/api/notifications/read') {
+      await query('UPDATE notifications SET read_at=now() WHERE user_id=$1 AND read_at IS NULL', [auth.user.id]);
+      return send(response, 200, { message: 'Notifications marked as read.' });
+    }
     if (request.method === 'POST' && path === '/api/profile/image') {
       const kind = url.searchParams.get('kind');
       if (!['avatar', 'cover'].includes(kind)) return send(response, 400, { error: 'Image kind must be avatar or cover.' });
@@ -234,7 +244,16 @@ const server = createServer(async (request, response) => {
       const ownProfile = profile.id === auth.user.id;
       const { rows } = await query(`SELECT data || jsonb_build_object('id',id,'userId',user_id,'createdAt',created_at,'updatedAt',updated_at) AS combo
         FROM combos WHERE user_id=$1 AND deleted_at IS NULL ${ownProfile ? '' : "AND data->>'status'='Published' AND data->>'visibility'='Public'"} ORDER BY updated_at DESC`, [profile.id]);
-      return send(response, 200, { user: profile, combos: rows.map((row) => row.combo) });
+      let likedCombos = [];
+      if (ownProfile) {
+        const { rows: likedRows } = await query(`SELECT c.data || jsonb_build_object('id',c.id,'userId',c.user_id,'createdAt',c.created_at,'updatedAt',c.updated_at,
+          'creator',u.name,'avatarUrl',coalesce(u.avatar_url,''),'liked',true,'likes',(SELECT count(*)::int FROM likes WHERE combo_id=c.id)) AS combo
+          FROM likes l JOIN combos c ON c.id=l.combo_id JOIN users u ON u.id=c.user_id
+          WHERE l.user_id=$1 AND c.deleted_at IS NULL AND c.data->>'status'='Published' AND c.data->>'visibility'='Public'
+          ORDER BY l.created_at DESC`, [profile.id]);
+        likedCombos = likedRows.map((row) => row.combo);
+      }
+      return send(response, 200, { user: profile, combos: rows.map((row) => row.combo), likedCombos });
     }
     const followMatch = path.match(/^\/api\/users\/([^/]+)\/follow$/);
     if (followMatch && request.method === 'POST') {
@@ -242,7 +261,10 @@ const server = createServer(async (request, response) => {
       if (followedId === auth.user.id) return send(response, 400, { error: 'You cannot follow yourself.' });
       const result = await transaction(async (client) => {
         const removed = await client.query('DELETE FROM follows WHERE follower_id=$1 AND followed_id=$2 RETURNING follower_id', [auth.user.id, followedId]);
-        if (!removed.rowCount) await client.query('INSERT INTO follows (follower_id,followed_id,created_at) VALUES ($1,$2,now())', [auth.user.id, followedId]);
+        if (!removed.rowCount) {
+          await client.query('INSERT INTO follows (follower_id,followed_id,created_at) VALUES ($1,$2,now())', [auth.user.id, followedId]);
+          await client.query(`INSERT INTO notifications (id,user_id,actor_id,type,data,created_at) VALUES ($1,$2,$3,'followed','{}'::jsonb,now())`, [randomUUID(), followedId, auth.user.id]);
+        }
         const { rows: [{ count }] } = await client.query('SELECT count(*)::int AS count FROM follows WHERE followed_id=$1', [followedId]);
         return { followed: !removed.rowCount, followers: count };
       });
@@ -276,7 +298,8 @@ const server = createServer(async (request, response) => {
     }
     if (request.method === 'GET' && path === '/api/explore') {
       const { rows } = await query(`SELECT c.data || jsonb_build_object('id',c.id,'userId',c.user_id,'createdAt',c.created_at,'updatedAt',c.updated_at,
-        'creator',u.name,'avatarUrl',coalesce(u.avatar_url,''),'likes',count(l.user_id),'liked',coalesce(bool_or(l.user_id=$1),false)) AS combo
+        'creator',u.name,'avatarUrl',coalesce(u.avatar_url,''),'likes',count(l.user_id),'liked',coalesce(bool_or(l.user_id=$1),false),
+        'followed',EXISTS(SELECT 1 FROM follows f WHERE f.follower_id=$1 AND f.followed_id=c.user_id)) AS combo
         FROM combos c JOIN users u ON u.id=c.user_id LEFT JOIN likes l ON l.combo_id=c.id
         WHERE c.deleted_at IS NULL AND c.data->>'status'='Published' AND c.data->>'visibility'='Public'
         GROUP BY c.id,u.name,u.avatar_url ORDER BY c.created_at DESC`, [auth?.user.id || '']);
@@ -289,6 +312,7 @@ const server = createServer(async (request, response) => {
       const combo = { ...body, id: randomUUID(), userId: auth.user.id, game: 'Street Fighter 6', saves: 0, createdAt: now, updatedAt: now };
       const { id, userId, createdAt, updatedAt, ...data } = combo;
       await query('INSERT INTO combos (id,user_id,data,created_at,updated_at) VALUES ($1,$2,$3,$4,$5)', [id,userId,data,createdAt,updatedAt]);
+      await query(`INSERT INTO notifications (id,user_id,actor_id,combo_id,type,data,created_at) VALUES ($1,$2,$2,$3,'combo_posted',$4,now())`, [randomUUID(), userId, id, { title: combo.title }]);
       return send(response, 201, { combo });
     }
 
@@ -315,11 +339,14 @@ const server = createServer(async (request, response) => {
 
     const likeMatch = path.match(/^\/api\/combos\/([^/]+)\/like$/);
     if (likeMatch && request.method === 'POST') {
-      const { rows: [combo] } = await query(`SELECT id FROM combos WHERE id=$1 AND deleted_at IS NULL AND data->>'status'='Published' AND data->>'visibility'='Public'`, [likeMatch[1]]);
+      const { rows: [combo] } = await query(`SELECT id,user_id,data->>'title' AS title FROM combos WHERE id=$1 AND deleted_at IS NULL AND data->>'status'='Published' AND data->>'visibility'='Public'`, [likeMatch[1]]);
       if (!combo) return send(response, 404, { error: 'Published combo not found.' });
       const result = await transaction(async (client) => {
         const existing = await client.query('DELETE FROM likes WHERE combo_id=$1 AND user_id=$2 RETURNING user_id', [combo.id, auth.user.id]);
-        if (!existing.rowCount) await client.query('INSERT INTO likes (combo_id,user_id,created_at) VALUES ($1,$2,$3)', [combo.id, auth.user.id, new Date()]);
+        if (!existing.rowCount) {
+          await client.query('INSERT INTO likes (combo_id,user_id,created_at) VALUES ($1,$2,$3)', [combo.id, auth.user.id, new Date()]);
+          if (combo.user_id !== auth.user.id) await client.query(`INSERT INTO notifications (id,user_id,actor_id,combo_id,type,data,created_at) VALUES ($1,$2,$3,$4,'combo_liked',$5,now())`, [randomUUID(), combo.user_id, auth.user.id, combo.id, { title: combo.title }]);
+        }
         const { rows: [{ count }] } = await client.query('SELECT count(*)::int AS count FROM likes WHERE combo_id=$1', [combo.id]);
         await client.query(`UPDATE combos SET data=jsonb_set(data,'{saves}',$2::jsonb) WHERE id=$1`, [combo.id, JSON.stringify(count)]);
         return { liked: !existing.rowCount, likes: count };

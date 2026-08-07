@@ -4,6 +4,7 @@ import '../styles/Home.css';
 import { getCombos, getExploreCombos, toggleComboLike } from '../lib/api.js';
 import { getCharacterImage } from '../lib/characterImages.js';
 import SkeletonLoader from '../components/SkeletonLoader.jsx';
+import Notifications from '../components/Notifications.jsx';
 
 const fighterColor = (fighter) => {
   if (['Ken', 'Marisa', 'Dhalsim'].includes(fighter)) return 'orange';
@@ -76,7 +77,7 @@ function Home({ navigate, user }) {
         <div className="home-user">
           {user ? (
             <>
-              <button className="icon-button" aria-label="Notifications">●</button>
+              <Notifications navigate={navigate} />
               <button className="avatar" aria-label="Open profile" onClick={() => navigate('/profile')}>{user.avatarUrl ? <img src={user.avatarUrl} alt="" /> : user.name.charAt(0).toUpperCase()}</button>
             </>
           ) : <button className="header-login" type="button" onClick={() => navigate('/login')}>Sign in</button>}

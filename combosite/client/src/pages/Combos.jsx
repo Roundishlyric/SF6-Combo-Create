@@ -2,9 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import '../styles/Home.css';
 import '../styles/Library.css';
 import sf6Art from '../assets/sf6-optimized.jpg';
-import { getExploreCombos, toggleComboLike } from '../lib/api.js';
+import { getExploreCombos, toggleComboLike, toggleFollow } from '../lib/api.js';
 import { getCharacterImage } from '../lib/characterImages.js';
 import SkeletonLoader from '../components/SkeletonLoader.jsx';
+import Notifications from '../components/Notifications.jsx';
 
 const fighterColor = (fighter) => {
   if (['Ken', 'Marisa', 'Dhalsim'].includes(fighter)) return 'orange';
@@ -95,7 +96,7 @@ function Header({ navigate, active, user }) {
       <div className="home-user">
         {user ? (
           <>
-            <button className="icon-button" type="button" aria-label="Notifications">●</button>
+            <Notifications navigate={navigate} />
             <button className="avatar" type="button" aria-label="Open profile" onClick={() => navigate('/profile')}>{user.avatarUrl ? <img src={user.avatarUrl} alt="" /> : user.name.charAt(0).toUpperCase()}</button>
           </>
         ) : <button className="header-login" type="button" onClick={() => navigate('/login')}>Sign in</button>}
@@ -110,7 +111,7 @@ function Combos({ navigate, user }) {
   const [fighter, setFighter] = useState('All fighters');
   const [difficulty, setDifficulty] = useState('All levels');
   const [sortBy, setSortBy] = useState('Most recent');
-  const [likedOnly, setLikedOnly] = useState(false);
+  const [followingOnly, setFollowingOnly] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [likeError, setLikeError] = useState('');
@@ -121,7 +122,7 @@ function Combos({ navigate, user }) {
       const matchesText = `${combo.character} ${combo.title} ${combo.creator}`.toLowerCase().includes(query.toLowerCase());
       const matchesFighter = fighter === 'All fighters' || combo.character === fighter;
       const matchesDifficulty = difficulty === 'All levels' || combo.difficulty === difficulty;
-      return matchesText && matchesFighter && matchesDifficulty && (!likedOnly || combo.liked);
+      return matchesText && matchesFighter && matchesDifficulty && (!followingOnly || combo.followed);
     });
 
     const toNumber = (value) => Number(String(value).replace(/[^0-9.-]/g, '')) || 0;
@@ -135,7 +136,7 @@ function Combos({ navigate, user }) {
       }
       return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
     });
-  }, [communityCombos, query, fighter, difficulty, likedOnly, sortBy]);
+  }, [communityCombos, query, fighter, difficulty, followingOnly, sortBy]);
 
   useEffect(() => {
     let active = true;
@@ -156,6 +157,22 @@ function Combos({ navigate, user }) {
       const result = await toggleComboLike(id);
       setCommunityCombos((current) => current.map((combo) =>
         combo.id === id ? { ...combo, liked: result.liked, likes: result.likes } : combo
+      ));
+    } catch (problem) {
+      setLikeError(problem.message);
+    }
+  };
+
+  const toggleCreatorFollow = async (creatorId) => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+    setLikeError('');
+    try {
+      const result = await toggleFollow(creatorId);
+      setCommunityCombos((current) => current.map((combo) =>
+        combo.userId === creatorId ? { ...combo, followed: result.followed } : combo
       ));
     } catch (problem) {
       setLikeError(problem.message);
@@ -213,8 +230,8 @@ function Combos({ navigate, user }) {
               <label>Difficulty
                 <FilterSelect label="Difficulty" value={difficulty} onChange={setDifficulty} options={['All levels', 'Beginner', 'Intermediate', 'Advanced', 'Expert']} />
               </label>
-              <button type="button" className={likedOnly ? 'active-filter filter-toggle' : 'filter-toggle'} onClick={() => user ? setLikedOnly((value) => !value) : navigate('/login')}>
-                {likedOnly ? 'Liked combos' : 'Liked only'} <span>♥</span>
+              <button type="button" className={followingOnly ? 'active-filter filter-toggle' : 'filter-toggle'} onClick={() => user ? setFollowingOnly((value) => !value) : navigate('/login')}>
+                {followingOnly ? 'Following only' : 'Following'} <span>＋</span>
               </button>
             </div>
           </aside>
@@ -240,7 +257,7 @@ function Combos({ navigate, user }) {
                         {combo.avatarUrl ? <img src={combo.avatarUrl} alt="" loading="lazy" /> : <span>{combo.creator?.charAt(0).toUpperCase()}</span>}
                       </button>
                     </div>
-                    <div><strong>{combo.character}</strong><button className="creator-link" type="button" onClick={() => navigate(`/profile/${combo.userId}`)}>by {combo.creator}</button></div>
+                    <div><strong>{combo.character}</strong><div className="creator-actions"><button className="creator-link" type="button" onClick={() => navigate(`/profile/${combo.userId}`)}>by {combo.creator}</button>{user?.id !== combo.userId && <button className={`card-follow-button ${combo.followed ? 'following' : ''}`} type="button" onClick={() => toggleCreatorFollow(combo.userId)}>{combo.followed ? 'Following' : 'Follow'}</button>}</div></div>
                     <button className={combo.liked ? 'saved' : ''} onClick={() => toggleLiked(combo.id)} type="button" aria-label={user ? `${combo.liked ? 'Unlike' : 'Like'} ${combo.title}` : 'Sign in to like this combo'}>{combo.liked ? '♥' : '♡'}</button>
                   </div>
                   <div className="difficulty-line"><span>{combo.game}</span><i className={combo.difficulty.toLowerCase()}>{combo.difficulty}</i></div>
@@ -264,8 +281,8 @@ function Combos({ navigate, user }) {
             </section>}
             {!loading && !loadError && results.length === 0 && (
               <div className="empty-results">
-                <strong>{likedOnly ? 'No liked combos yet' : 'No published combos found'}</strong>
-                <p>{likedOnly ? 'Like a published combo to keep it here.' : 'Publish a public combo and it will appear here.'}</p>
+                <strong>{followingOnly ? 'No combos from followed players' : 'No published combos found'}</strong>
+                <p>{followingOnly ? 'Follow a creator to see their published combos here.' : 'Publish a public combo and it will appear here.'}</p>
               </div>
             )}
           </section>

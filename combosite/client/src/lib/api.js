@@ -75,6 +75,8 @@ export const getProfile = async (userId) => request(`/api/users/${encodeURICompo
 export const toggleFollow = async (userId) => request(`/api/users/${encodeURIComponent(userId)}/follow`, { method: 'POST' });
 
 export const getExploreCombos = async () => (await request('/api/explore')).combos;
+export const getNotifications = async () => request('/api/notifications');
+export const markNotificationsRead = async () => request('/api/notifications/read', { method: 'POST' });
 
 export const toggleComboLike = async (comboId) =>
   request(`/api/combos/${comboId}/like`, { method: 'POST' });

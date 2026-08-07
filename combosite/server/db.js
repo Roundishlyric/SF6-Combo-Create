@@ -20,6 +20,9 @@ CREATE TABLE IF NOT EXISTS likes (user_id text NOT NULL REFERENCES users(id) ON 
 CREATE INDEX IF NOT EXISTS likes_combo_id_idx ON likes(combo_id);
 CREATE TABLE IF NOT EXISTS follows (follower_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE, followed_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE, created_at timestamptz NOT NULL, PRIMARY KEY (follower_id, followed_id), CHECK (follower_id <> followed_id));
 CREATE INDEX IF NOT EXISTS follows_followed_id_idx ON follows(followed_id);
+CREATE TABLE IF NOT EXISTS notifications (id text PRIMARY KEY, user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE, actor_id text REFERENCES users(id) ON DELETE SET NULL, combo_id text REFERENCES combos(id) ON DELETE CASCADE, type text NOT NULL, data jsonb NOT NULL DEFAULT '{}'::jsonb, created_at timestamptz NOT NULL, read_at timestamptz);
+CREATE INDEX IF NOT EXISTS notifications_user_created_idx ON notifications(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS notifications_user_unread_idx ON notifications(user_id, created_at DESC) WHERE read_at IS NULL;
 CREATE TABLE IF NOT EXISTS rate_limits (key text PRIMARY KEY, count integer NOT NULL, reset_at timestamptz NOT NULL);
 CREATE INDEX IF NOT EXISTS rate_limits_reset_at_idx ON rate_limits(reset_at);
 `;

@@ -4,6 +4,7 @@ import '../styles/Profile.css';
 import { getProfile, toggleFollow, uploadProfileImage } from '../lib/api.js';
 import { getCharacterImage } from '../lib/characterImages.js';
 import SkeletonLoader from '../components/SkeletonLoader.jsx';
+import Notifications from '../components/Notifications.jsx';
 
 const fighterColor = (fighter) => {
   if (['Ken', 'Marisa', 'Dhalsim'].includes(fighter)) return 'orange';
@@ -14,6 +15,8 @@ const fighterColor = (fighter) => {
 
 function Profile({ navigate, user, profileId, onLogout, onUserUpdate }) {
   const [combos, setCombos] = useState([]);
+  const [likedCombos, setLikedCombos] = useState([]);
+  const [comboTab, setComboTab] = useState('created');
   const [profileUser, setProfileUser] = useState(user);
   const [loadError, setLoadError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -28,12 +31,13 @@ function Profile({ navigate, user, profileId, onLogout, onUserUpdate }) {
   useEffect(() => {
     let active = true;
     getProfile(profileId)
-      .then((result) => { if (active) { setProfileUser(result.user); setCombos(result.combos); } })
+      .then((result) => { if (active) { setProfileUser(result.user); setCombos(result.combos); setLikedCombos(result.likedCombos || []); setComboTab('created'); } })
       .catch((problem) => { if (active) setLoadError(problem.message); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [profileId]);
   const isOwnProfile = profileUser.id === user.id;
+  const displayedCombos = comboTab === 'liked' ? likedCombos : recentCombos;
 
   const totalLikes = combos.reduce((sum, combo) => sum + Number(combo.saves || 0), 0);
   useEffect(() => {
@@ -88,6 +92,7 @@ function Profile({ navigate, user, profileId, onLogout, onUserUpdate }) {
           <a href="/my-combos" onClick={(event) => go(event, '/my-combos')}>My Combos</a>
         </nav>
         <div className="home-user">
+          <Notifications navigate={navigate} />
           <button className="avatar active-avatar" type="button" aria-label="Profile">{user.avatarUrl ? <img src={user.avatarUrl} alt="" /> : user.name.charAt(0).toUpperCase()}</button>
         </div>
       </header>
@@ -116,19 +121,26 @@ function Profile({ navigate, user, profileId, onLogout, onUserUpdate }) {
             <div><strong>{combos.length}</strong><span>Combos</span></div>
             <div><strong>{totalLikes}</strong><span>Likes received</span></div>
             <div><strong>{profileUser.followers || 0}</strong><span>Followers</span></div>
+            <div><strong>{profileUser.following || 0}</strong><span>Following</span></div>
           </div>
         </section>
 
         <div className="profile-layout">
           <section className="profile-content">
             <div className="profile-section-title">
-              <div><p className="eyebrow">THE LAB</p><h2>Recent combos</h2></div>
-              <button type="button" onClick={() => navigate('/create')}>Create combo <span>＋</span></button>
+              <div>
+                <p className="eyebrow">THE LAB</p>
+                <div className="profile-tabs" role="tablist" aria-label="Profile combos">
+                  <button className={comboTab === 'created' ? 'active' : ''} type="button" role="tab" aria-selected={comboTab === 'created'} onClick={() => setComboTab('created')}>Recent combos <span>{combos.length}</span></button>
+                  {isOwnProfile && <button className={comboTab === 'liked' ? 'active' : ''} type="button" role="tab" aria-selected={comboTab === 'liked'} onClick={() => setComboTab('liked')}>Liked combos <span>{likedCombos.length}</span></button>}
+                </div>
+              </div>
+              {isOwnProfile && <button className="profile-create-link" type="button" onClick={() => navigate('/create')}>Create combo <span>＋</span></button>}
             </div>
             {loadError && <p className="profile-message error" role="alert">{loadError}</p>}
             {loading && <SkeletonLoader variant="row" count={3} />}
             <div className="profile-combo-list">
-              {!loading && recentCombos.map((combo) => (
+              {!loading && displayedCombos.map((combo) => (
                 <article className="profile-combo" key={combo.id}>
                   <div className={`fighter-avatar ${fighterColor(combo.character)}`}>
                     <img src={getCharacterImage(combo.character)} alt={combo.character} loading="lazy" decoding="async" width="160" height="160" />
@@ -140,15 +152,15 @@ function Profile({ navigate, user, profileId, onLogout, onUserUpdate }) {
                   </div>
                   <div className="profile-combo-stats">
                     <span><small>DAMAGE</small><strong>{combo.damage || '—'}</strong></span>
-                    <span><small>LIKES</small><strong>{combo.saves || 0}</strong></span>
+                    <span><small>LIKES</small><strong>{combo.likes ?? combo.saves ?? 0}</strong></span>
                   </div>
                 </article>
               ))}
             </div>
-            {!loading && !loadError && recentCombos.length === 0 && (
-              <div className="profile-message"><strong>No combos yet</strong><p>Create your first combo to see it here.</p></div>
+            {!loading && !loadError && displayedCombos.length === 0 && (
+              <div className="profile-message"><strong>{comboTab === 'liked' ? 'No liked combos yet' : 'No combos yet'}</strong><p>{comboTab === 'liked' ? 'Like a public combo and it will appear here.' : 'Create your first combo to see it here.'}</p></div>
             )}
-            {combos.length > 0 && (
+            {comboTab === 'created' && combos.length > 0 && (
               <button className="view-all-combos" type="button" onClick={() => navigate('/my-combos')}>View all {combos.length} combos <span>→</span></button>
             )}
           </section>
