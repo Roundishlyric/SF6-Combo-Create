@@ -8,11 +8,9 @@
     "client": "npm --prefix client run dev -- --host 0.0.0.0 --port 5173",
     "build": "npm --prefix client run build",
     "lint": "npm --prefix client run lint",
-    "start": "npm run dev",
-    "migrate:mongo": "node --env-file-if-exists=.env server/migrate-mongo.js"
+    "start": "npm run dev"
   },
   "dependencies": {
-    "mongodb": "^7.5.0",
     "pg": "^8.22.0"
   }
 }

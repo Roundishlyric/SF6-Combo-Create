@@ -51,7 +51,7 @@ export const updateSessionUser = (user) => {
 };
 
 export const registerUser = async (details) =>
-  storeSession(await request('/api/auth/register', { method: 'POST', body: JSON.stringify(details) }));
+  request('/api/auth/register', { method: 'POST', body: JSON.stringify(details) });
 
 export const loginUser = async ({ remember, ...credentials }) =>
   storeSession(

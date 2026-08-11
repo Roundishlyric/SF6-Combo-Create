@@ -112,7 +112,7 @@
 .icon-button, .avatar { width: 38px; height: 38px; border-radius: 50%; cursor: pointer; }
 .header-login { min-height: 36px; padding: 0 14px; border: 1px solid rgba(255,255,255,.12); background: #11151e; color: #eef1f5; font: inherit; font-size: .66rem; font-weight: 800; cursor: pointer; }
 .icon-button { border: 1px solid var(--home-border); background: #111521; color: #ff5538; font-size: .65rem; }
-.notifications { position: relative; }.notification-button { position: relative; border: 0; }.notification-button b { position: absolute; top: -5px; right: -6px; display: grid; place-items: center; min-width: 18px; height: 18px; padding: 0 4px; border: 2px solid #0b0806; border-radius: 10px; background: #ff5233; color: white; font-size: .48rem; }
+.notifications { position: relative; display: grid; place-items: center; }.notification-button { position: relative; display: grid; place-items: center; flex: 0 0 38px; border: 0; padding: 0; line-height: 1; }.notification-button b { position: absolute; top: -3px; right: -3px; display: grid; place-items: center; min-width: 16px; height: 16px; padding: 0 3px; border: 2px solid #0b0806; border-radius: 999px; background: #ff5233; color: white; font-size: .46rem; line-height: 1; }
 .notification-button svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
 .notification-heading button { border: 0; background: transparent; color: #ff8463; font: inherit; font-size: .54rem; cursor: pointer; }
 .notification-list > article { display: grid; grid-template-columns: minmax(0, 1fr) auto; border-bottom: 1px solid rgba(255,255,255,.055); }

@@ -4,6 +4,8 @@ import AuthLayout from '../components/AuthLayout.jsx';
 function Register({ navigate, onRegister }) {
   const [form, setForm] = useState({ name: '', email: '', password: '', confirmPassword: '' });
   const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const update = (event) => setForm({ ...form, [event.target.name]: event.target.value });
   const submit = async (event) => {
@@ -55,12 +57,30 @@ function Register({ navigate, onRegister }) {
 
         <label className="register-label">
           Password
-          <input name="password" value={form.password} onChange={update} type="password" autoComplete="new-password" placeholder="8+ characters, upper, lower, number" minLength="8" maxLength="128" required />
+          <span className="password-field">
+            <input name="password" value={form.password} onChange={update} type={showPassword ? 'text' : 'password'} autoComplete="new-password" placeholder="8+ characters, upper, lower, number" minLength="8" maxLength="128" required />
+            <button type="button" className="password-toggle" onClick={() => setShowPassword((visible) => !visible)} aria-label={`${showPassword ? 'Hide' : 'Show'} password`} aria-pressed={showPassword}>
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" />
+                <circle cx="12" cy="12" r="3" />
+                {showPassword && <path d="m4 4 16 16" />}
+              </svg>
+            </button>
+          </span>
         </label>
 
         <label className="register-label">
           Confirm password
-          <input name="confirmPassword" value={form.confirmPassword} onChange={update} type="password" autoComplete="new-password" placeholder="Confirm your password" minLength="8" maxLength="128" required />
+          <span className="password-field">
+            <input name="confirmPassword" value={form.confirmPassword} onChange={update} type={showConfirmPassword ? 'text' : 'password'} autoComplete="new-password" placeholder="Confirm your password" minLength="8" maxLength="128" required />
+            <button type="button" className="password-toggle" onClick={() => setShowConfirmPassword((visible) => !visible)} aria-label={`${showConfirmPassword ? 'Hide' : 'Show'} confirmation password`} aria-pressed={showConfirmPassword}>
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" />
+                <circle cx="12" cy="12" r="3" />
+                {showConfirmPassword && <path d="m4 4 16 16" />}
+              </svg>
+            </button>
+          </span>
         </label>
 
         <div className="login-options">

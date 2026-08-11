@@ -206,6 +206,49 @@
   outline: none;
 }
 
+.password-field {
+  position: relative;
+  display: block;
+}
+
+.password-field input {
+  width: 100%;
+  box-sizing: border-box;
+  padding-right: 3.25rem;
+}
+
+.password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 0.75rem;
+  transform: translateY(-50%);
+  border: 0;
+  padding: 0.3rem 0.4rem;
+  background: transparent;
+  color: var(--accent-2);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.password-toggle svg {
+  display: block;
+  width: 1.35rem;
+  height: 1.35rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.password-toggle:focus-visible {
+  border-radius: 0.35rem;
+  outline: 2px solid var(--accent-2);
+  outline-offset: 2px;
+}
+
 .login-form input:focus,
 .register-form input:focus {
   border-color: var(--accent-2);

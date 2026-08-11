@@ -7,6 +7,7 @@ function Login({ navigate, onLogin }) {
   const [form, setForm] = useState({ email: '', password: '', remember: false });
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const submit = async (event) => {
     event.preventDefault();
@@ -42,7 +43,16 @@ function Login({ navigate, onLogin }) {
 
         <label className="login-label">
           Password
-          <input type="password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} autoComplete="current-password" placeholder="Enter your password" required />
+          <span className="password-field">
+            <input type={showPassword ? 'text' : 'password'} value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} autoComplete="current-password" placeholder="Enter your password" required />
+            <button type="button" className="password-toggle" onClick={() => setShowPassword((visible) => !visible)} aria-label={`${showPassword ? 'Hide' : 'Show'} password`} aria-pressed={showPassword}>
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" />
+                <circle cx="12" cy="12" r="3" />
+                {showPassword && <path d="m4 4 16 16" />}
+              </svg>
+            </button>
+          </span>
         </label>
 
         <div className="login-options">
@@ -52,14 +62,13 @@ function Login({ navigate, onLogin }) {
               checked={form.remember}
               onChange={(event) => setForm({ ...form, remember: event.target.checked })}
             />
-            <span className="remember-box" aria-hidden="true">✓</span>
+            <span className="remember-box" aria-hidden="true">{'\u2713'}</span>
             <span>Remember me</span>
           </label>
-          <a href="#" onClick={(event) => event.preventDefault()}>Forgot password?</a>
         </div>
 
         <button type="submit" className="login-btn" disabled={submitting}>
-          {submitting ? <><span className="login-spinner" /> Signing in…</> : 'Log In'}
+          {submitting ? <><span className="login-spinner" /> Signing in...</> : 'Log In'}
         </button>
         {error && <p className="auth-error" role="alert">{error}</p>}
       </form>

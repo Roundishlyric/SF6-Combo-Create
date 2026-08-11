@@ -196,8 +196,7 @@ const server = createServer(async (request, response) => {
         if (error.code === '23505') return send(response, 409, { error: 'An account with this email already exists.' });
         throw error;
       }
-      const session = await createSession(user.id);
-      return send(response, 201, { user: publicUser(user), ...session });
+      return send(response, 201, { user: publicUser(user) });
     }
 
     if (request.method === 'POST' && path === '/api/auth/login') {

@@ -31,6 +31,13 @@ function MyCombos({ navigate, user }) {
   const [actionError, setActionError] = useState('');
   const [pendingDelete, setPendingDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const prepareVideo = (event) => {
+    const video = event.currentTarget;
+    video.defaultMuted = false;
+    video.muted = false;
+    video.volume = 1;
+    if (video.currentTime === 0 && Number.isFinite(video.duration) && video.duration > 0.01) video.currentTime = 0.01;
+  };
   const combos = useMemo(() => personalCombos.filter((combo) => {
     const tabMatch = tab === 'All' || combo.status === tab;
     return tabMatch && `${combo.character} ${combo.title}`.toLowerCase().includes(query.toLowerCase());
@@ -108,6 +115,12 @@ function MyCombos({ navigate, user }) {
                 <div className="my-combo-number"><small>DAMAGE</small><strong>{combo.damage}</strong></div>
                 <div className="updated"><small>UPDATED</small><span>{relativeDate(combo.updatedAt)}</span></div>
                 <div className="row-menu-wrap"><button className="row-menu" onClick={() => setMenu(menu === combo.id ? null : combo.id)} type="button" aria-label={`Actions for ${combo.title}`}>•••</button>{menu === combo.id && <div className="menu-popover"><button type="button" onClick={() => navigate(`/combos/${encodeURIComponent(combo.id)}/edit`)}>Edit</button><button className="delete-action" type="button" onClick={() => setPendingDelete(combo)}>Delete</button></div>}</div>
+                {combo.video?.url && (
+                  <video className="my-combo-video" controls preload="metadata" playsInline onLoadedMetadata={prepareVideo}>
+                    <source src={combo.video.url} type={combo.video.type} />
+                    Your browser does not support video playback.
+                  </video>
+                )}
               </article>
             ))}
           </div>

@@ -33,9 +33,8 @@ function App() {
   };
 
   const register = async (details) => {
-    const session = await registerUser(details);
-    setUser(session);
-    navigate('/home');
+    await registerUser(details);
+    navigate('/login');
   };
 
   const logout = async () => {
