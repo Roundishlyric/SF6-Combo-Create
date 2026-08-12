@@ -33,7 +33,6 @@ function Login({ navigate, onLogin }) {
       heroParagraph="Save your favorite sequences, follow creators, and keep your training routine moving."
       heroImage={sf6}
       cardHeading={<>Welcome Back<span className="login-heading-cursor" aria-hidden="true">_</span></>}
-      cardDescription="Sign in to your account and continue building."
     >
       <form className="login-form" onSubmit={submit}>
         <label className="login-label">

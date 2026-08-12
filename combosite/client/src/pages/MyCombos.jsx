@@ -21,7 +21,7 @@ const relativeDate = (date) => {
   return `${days} days ago`;
 };
 
-function MyCombos({ navigate, user }) {
+function MyCombos({ navigate, user, notify }) {
   const [personalCombos, setPersonalCombos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -71,8 +71,10 @@ function MyCombos({ navigate, user }) {
       await refreshCombos();
       setMenu(null);
       setPendingDelete(null);
+      notify('Combo deleted successfully.');
     } catch (problem) {
       setActionError(problem.message);
+      notify(problem.message, 'error');
     } finally {
       setDeleting(false);
     }

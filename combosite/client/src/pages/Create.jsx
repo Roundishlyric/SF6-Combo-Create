@@ -41,7 +41,7 @@ function SelectField({ label, name, value, options, onChange }) {
   );
 }
 
-function Create({ navigate, user, comboId = null }) {
+function Create({ navigate, user, comboId = null, notify }) {
   const [form, setForm] = useState(initialForm);
   const [submitted, setSubmitted] = useState(false);
   const [video, setVideo] = useState(null);
@@ -127,9 +127,11 @@ function Create({ navigate, user, comboId = null }) {
       else await saveCombo(combo);
       setSubmitted(true);
       setShowPublishConfirm(false);
-      window.setTimeout(() => navigate('/my-combos'), 650);
+      notify(comboId ? 'Combo updated successfully.' : 'Combo created successfully.');
+      navigate('/my-combos');
     } catch (problem) {
       setSubmitError(problem.message);
+      notify(problem.message, 'error');
       setShowPublishConfirm(false);
     } finally {
       setPublishing(false);
