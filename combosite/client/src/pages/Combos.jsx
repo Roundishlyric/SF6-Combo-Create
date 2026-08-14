@@ -209,7 +209,7 @@ function Combos({ navigate, user }) {
       <Header navigate={navigate} active="explore" user={user} />
       <main className="library-main">
         <section className="explore-hero" aria-label="Explore featured combos">
-          <img src="/images/streeto.jpg" alt="Street Fighter artwork" fetchPriority="high" />
+          <img src="/images/streeto.webp" alt="Street Fighter artwork" fetchPriority="high" />
           <div className="explore-hero-overlay" />
           <div className="explore-hero-copy">
             <span className="eyebrow">FEATURED ROUTES</span>

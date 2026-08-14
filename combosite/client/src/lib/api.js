@@ -1,3 +1,5 @@
+import { upload } from '@vercel/blob/client';
+
 const SESSION_KEY = 'hadoukraft.api-session';
 
 const storedSession = () => {
@@ -16,12 +18,11 @@ const storedSession = () => {
 };
 
 const request = async (path, options = {}) => {
-  const session = storedSession();
   const response = await fetch(path, {
     ...options,
+    credentials: 'same-origin',
     headers: {
       'Content-Type': 'application/json',
-      ...(session?.token ? { Authorization: `Bearer ${session.token}` } : {}),
       ...options.headers,
     },
   });
@@ -30,8 +31,8 @@ const request = async (path, options = {}) => {
   return body;
 };
 
-const storeSession = ({ user, token, expiresAt }, remember = false) => {
-  const session = { ...user, token, expiresAt };
+const storeSession = ({ user, expiresAt }, remember = false) => {
+  const session = { ...user, expiresAt };
   window.localStorage.removeItem(SESSION_KEY);
   window.sessionStorage.removeItem(SESSION_KEY);
   const storage = remember ? window.localStorage : window.sessionStorage;
@@ -55,7 +56,7 @@ export const registerUser = async (details) =>
 
 export const loginUser = async ({ remember, ...credentials }) =>
   storeSession(
-    await request('/api/auth/login', { method: 'POST', body: JSON.stringify(credentials) }),
+    await request('/api/auth/login', { method: 'POST', body: JSON.stringify({ ...credentials, remember }) }),
     remember,
   );
 
@@ -86,26 +87,30 @@ export const toggleComboLike = async (comboId) =>
 
 export const uploadVideo = async (file) => {
   const session = storedSession();
-  const response = await fetch('/api/videos', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${session?.token || ''}`,
-      'Content-Type': file.type,
-      'X-File-Name': encodeURIComponent(file.name),
-    },
-    body: file,
+  if (!session?.id) throw new Error('Authentication required.');
+  const blob = await upload(`videos/${session.id}/${crypto.randomUUID()}-${file.name}`, file, {
+    access: 'public',
+    handleUploadUrl: '/api/uploads/token',
+    clientPayload: JSON.stringify({ type: 'video' }),
+    multipart: file.size > 5 * 1024 * 1024,
   });
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(body.error || 'The video could not be uploaded.');
-  return body.video;
+  return { url: blob.url, name: file.name, size: file.size, type: file.type };
 };
 
 export const uploadProfileImage = async (kind, file) => {
   const session = storedSession();
+  if (!session?.id) throw new Error('Authentication required.');
+  const blob = await upload(`profiles/${session.id}/${kind}-${crypto.randomUUID()}-${file.name}`, file, {
+    access: 'public',
+    handleUploadUrl: '/api/uploads/token',
+    clientPayload: JSON.stringify({ type: 'profile', kind }),
+    multipart: file.size > 4 * 1024 * 1024,
+  });
   const response = await fetch(`/api/profile/image?kind=${encodeURIComponent(kind)}`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${session?.token || ''}`, 'Content-Type': file.type },
-    body: file,
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url: blob.url }),
   });
   const body = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(body.error || 'The image could not be updated.');

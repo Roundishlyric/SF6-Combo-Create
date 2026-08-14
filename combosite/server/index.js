@@ -1,23 +1,17 @@
 import { createServer } from 'node:http';
 import { createHash, randomBytes, randomUUID, scrypt as scryptCallback, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
-import { createReadStream, createWriteStream } from 'node:fs';
-import { mkdir, stat, unlink } from 'node:fs/promises';
-import { dirname, extname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { Transform } from 'node:stream';
-import { pipeline } from 'node:stream/promises';
+import { handleUpload } from '@vercel/blob/client';
 import { closeDatabase, connectDatabase, query, transaction } from './db.js';
 
 const scrypt = promisify(scryptCallback);
 const port = Number(process.env.PORT || 3001);
-const serverDirectory = dirname(fileURLToPath(import.meta.url));
-const uploadsDirectory = join(serverDirectory, 'uploads');
-const videoTypes = { 'video/mp4': '.mp4', 'video/webm': '.webm', 'video/quicktime': '.mov' };
-const imageTypes = { 'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp' };
+const videoTypes = ['video/mp4', 'video/webm', 'video/quicktime'];
+const imageTypes = ['image/jpeg', 'image/png', 'image/webp'];
 const sessionTtlDays = Math.max(1, Math.min(90, Number(process.env.SESSION_TTL_DAYS) || 7));
 const sessionTtlMs = sessionTtlDays * 24 * 60 * 60 * 1000;
 const trustProxy = process.env.TRUST_PROXY === 'true';
+const sessionCookieName = 'hadoukraft_session';
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 class RequestError extends Error {
@@ -30,10 +24,7 @@ class RequestError extends Error {
 const send = (response, status, body, extraHeaders = {}) => {
   response.writeHead(status, {
     'Content-Type': 'application/json; charset=utf-8',
-    'Access-Control-Allow-Origin': 'http://localhost:5173',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-    'Access-Control-Expose-Headers': 'Retry-After',
+    'Cache-Control': 'no-store',
     ...extraHeaders,
   });
   response.end(JSON.stringify(body));
@@ -72,6 +63,22 @@ const createSession = async (userId) => {
   return { token, expiresAt };
 };
 
+const sessionCookie = (token, remember = false) => [
+  `${sessionCookieName}=${encodeURIComponent(token)}`,
+  'Path=/',
+  'HttpOnly',
+  'SameSite=Lax',
+  ...(process.env.VERCEL ? ['Secure'] : []),
+  ...(remember ? [`Max-Age=${Math.floor(sessionTtlMs / 1000)}`] : []),
+].join('; ');
+
+const clearSessionCookie = () => `${sessionCookieName}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${process.env.VERCEL ? '; Secure' : ''}`;
+
+const cookieValue = (request, name) => String(request.headers.cookie || '')
+  .split(';')
+  .map((part) => part.trim().split('='))
+  .find(([key]) => key === name)?.slice(1).join('=');
+
 const rateLimitKey = (request, scope, discriminator = '') => {
   const forwardedAddress = String(request.headers['x-forwarded-for'] || '').split(',')[0].trim();
   const address = (trustProxy && forwardedAddress) || request.socket.remoteAddress || 'unknown';
@@ -100,7 +107,9 @@ const rejectRateLimit = (response, result) => send(
 
 const authenticate = async (request) => {
   const header = request.headers.authorization || '';
-  const token = header.startsWith('Bearer ') ? header.slice(7) : '';
+  const token = header.startsWith('Bearer ')
+    ? header.slice(7)
+    : decodeURIComponent(cookieValue(request, sessionCookieName) || '');
   if (!token) return null;
   const { rows: [session] } = await query(`SELECT s.user_id AS "userId", s.expires_at AS "expiresAt", u.id, u.name, u.email,
     u.password_hash AS "passwordHash", u.password_salt AS "passwordSalt", u.created_at AS "createdAt", u.avatar_url AS "avatarUrl", u.cover_url AS "coverUrl"
@@ -128,7 +137,9 @@ const validateCombo = (body) => {
   if (body.game && body.game !== 'Street Fighter 6') throw new RequestError('Only Street Fighter 6 is supported.');
 };
 
-const server = createServer(async (request, response) => {
+const handler = async (request, response) => {
+  const requestId = String(request.headers['x-vercel-id'] || randomUUID());
+  response.setHeader('X-Request-Id', requestId);
   if (request.method === 'OPTIONS') return send(response, 204, {});
   const url = new URL(request.url, `http://${request.headers.host}`);
   const path = url.pathname;
@@ -139,40 +150,15 @@ const server = createServer(async (request, response) => {
       return send(response, 200, { status: 'ok', database: 'connected' });
     }
 
-    const uploadMatch = path.match(/^\/uploads\/([a-f0-9-]+\.(?:mp4|webm|mov|jpg|png|webp))$/i);
-    if (request.method === 'GET' && uploadMatch) {
-      const filePath = join(uploadsDirectory, uploadMatch[1]);
-      const file = await stat(filePath);
-      const contentTypes = { '.mp4': 'video/mp4', '.webm': 'video/webm', '.mov': 'video/quicktime', '.jpg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp' };
-      const contentType = contentTypes[extname(filePath).toLowerCase()] || 'application/octet-stream';
-      const range = request.headers.range;
-      if (range) {
-        const match = /^bytes=(\d*)-(\d*)$/.exec(range);
-        const start = match?.[1] ? Number(match[1]) : 0;
-        const end = match?.[2] ? Math.min(Number(match[2]), file.size - 1) : file.size - 1;
-        if (!match || !Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start > end || start >= file.size) {
-          response.writeHead(416, {
-            'Content-Range': `bytes */${file.size}`,
-            'Access-Control-Allow-Origin': 'http://localhost:5173',
-          });
-          return response.end();
-        }
-        response.writeHead(206, {
-          'Content-Type': contentType,
-          'Content-Length': end - start + 1,
-          'Content-Range': `bytes ${start}-${end}/${file.size}`,
-          'Accept-Ranges': 'bytes',
-          'Access-Control-Allow-Origin': 'http://localhost:5173',
-        });
-        return createReadStream(filePath, { start, end }).pipe(response);
-      }
-      response.writeHead(200, {
-        'Content-Type': contentType,
-        'Content-Length': file.size,
-        'Accept-Ranges': 'bytes',
-        'Access-Control-Allow-Origin': 'http://localhost:5173',
-      });
-      return createReadStream(filePath).pipe(response);
+    if (request.method === 'GET' && path === '/api/maintenance') {
+      const expected = process.env.CRON_SECRET;
+      const supplied = String(request.headers.authorization || '').replace(/^Bearer\s+/i, '');
+      if (!expected || supplied !== expected) return send(response, 401, { error: 'Authentication required.' });
+      const [sessions, rateLimits] = await Promise.all([
+        query('DELETE FROM sessions WHERE expires_at <= now()'),
+        query('DELETE FROM rate_limits WHERE reset_at <= now()'),
+      ]);
+      return send(response, 200, { status: 'ok', deleted: { sessions: sessions.rowCount, rateLimits: rateLimits.rowCount } });
     }
 
     if (request.method === 'POST' && path === '/api/auth/register') {
@@ -213,7 +199,35 @@ const server = createServer(async (request, response) => {
       const { rows: [user] } = await query('SELECT id,name,email,password_hash AS "passwordHash",password_salt AS "passwordSalt",created_at AS "createdAt",avatar_url AS "avatarUrl",cover_url AS "coverUrl" FROM users WHERE email=$1', [email]);
       if (!user || !(await passwordMatches(String(body.password || ''), user))) return send(response, 401, { error: 'Incorrect email or password.' });
       const session = await createSession(user.id);
-      return send(response, 200, { user: publicUser(user), ...session });
+      return send(response, 200, { user: publicUser(user), expiresAt: session.expiresAt }, {
+        'Set-Cookie': sessionCookie(session.token, body.remember === true),
+      });
+    }
+
+    if (request.method === 'POST' && path === '/api/uploads/token') {
+      const body = await readBody(request);
+      const uploadResponse = await handleUpload({
+        request,
+        body,
+        onBeforeGenerateToken: async (pathname, clientPayload) => {
+          const auth = await authenticate(request);
+          if (!auth) throw new RequestError('Authentication required.', 401);
+          const payload = JSON.parse(clientPayload || '{}');
+          const isProfileImage = payload.type === 'profile' && ['avatar', 'cover'].includes(payload.kind);
+          const isVideo = payload.type === 'video';
+          if (!isProfileImage && !isVideo) throw new RequestError('Invalid upload request.');
+          if (isProfileImage && !pathname.startsWith(`profiles/${auth.user.id}/`)) throw new RequestError('Invalid profile upload path.');
+          if (isVideo && !pathname.startsWith(`videos/${auth.user.id}/`)) throw new RequestError('Invalid video upload path.');
+          return {
+            allowedContentTypes: isProfileImage ? imageTypes : videoTypes,
+            maximumSizeInBytes: isProfileImage ? 8 * 1024 * 1024 : 100 * 1024 * 1024,
+            addRandomSuffix: true,
+            tokenPayload: JSON.stringify({ userId: auth.user.id, ...payload }),
+          };
+        },
+        onUploadCompleted: async () => {},
+      });
+      return send(response, 200, uploadResponse);
     }
 
     const auth = await authenticate(request);
@@ -223,7 +237,7 @@ const server = createServer(async (request, response) => {
     if (request.method === 'GET' && path === '/api/auth/me') return send(response, 200, { user: publicUser(auth.user) });
     if (request.method === 'POST' && path === '/api/auth/logout') {
       await query('DELETE FROM sessions WHERE token=$1', [auth.token]);
-      return send(response, 200, { message: 'Logged out.' });
+      return send(response, 200, { message: 'Logged out.' }, { 'Set-Cookie': clearSessionCookie() });
     }
     if (request.method === 'GET' && path === '/api/notifications') {
       const { rows } = await query(`SELECT n.id,n.type,n.combo_id AS "comboId",n.data,n.created_at AS "createdAt",n.read_at AS "readAt",
@@ -248,17 +262,15 @@ const server = createServer(async (request, response) => {
     if (request.method === 'POST' && path === '/api/profile/image') {
       const kind = url.searchParams.get('kind');
       if (!['avatar', 'cover'].includes(kind)) return send(response, 400, { error: 'Image kind must be avatar or cover.' });
-      const contentType = String(request.headers['content-type'] || '').split(';')[0];
-      const extension = imageTypes[contentType];
-      if (!extension) return send(response, 415, { error: 'Only JPEG, PNG, and WebP images are supported.' });
-      await mkdir(uploadsDirectory, { recursive: true });
-      const fileName = `${randomUUID()}${extension}`;
-      const filePath = join(uploadsDirectory, fileName);
-      let bytes = 0;
-      const limiter = new Transform({ transform(chunk, encoding, callback) { bytes += chunk.length; callback(bytes > 8 * 1024 * 1024 ? new Error('Image must be 8 MB or smaller.') : null, chunk); } });
-      try { await pipeline(request, limiter, createWriteStream(filePath, { flags: 'wx' })); }
-      catch (error) { await unlink(filePath).catch(() => {}); throw error; }
-      const imageUrl = `/uploads/${fileName}`;
+      const body = await readBody(request);
+      let imageUrl;
+      try {
+        const parsedUrl = new URL(body.url);
+        if (parsedUrl.protocol !== 'https:' || !parsedUrl.hostname.endsWith('.blob.vercel-storage.com')) throw new Error();
+        imageUrl = parsedUrl.toString();
+      } catch {
+        return send(response, 400, { error: 'A valid Vercel Blob URL is required.' });
+      }
       const column = kind === 'avatar' ? 'avatar_url' : 'cover_url';
       const { rows: [updated] } = await query(`UPDATE users SET ${column}=$1 WHERE id=$2 RETURNING id,name,email,created_at AS "createdAt",avatar_url AS "avatarUrl",cover_url AS "coverUrl"`, [imageUrl, auth.user.id]);
       return send(response, 200, { user: publicUser(updated) });
@@ -301,26 +313,7 @@ const server = createServer(async (request, response) => {
       return send(response, 200, result);
     }
     if (request.method === 'POST' && path === '/api/videos') {
-      const contentType = String(request.headers['content-type'] || '').split(';')[0];
-      const extension = videoTypes[contentType];
-      if (!extension) return send(response, 415, { error: 'Only MP4, WebM, and MOV videos are supported.' });
-      await mkdir(uploadsDirectory, { recursive: true });
-      const fileName = `${randomUUID()}${extension}`;
-      const filePath = join(uploadsDirectory, fileName);
-      let bytes = 0;
-      const limiter = new Transform({
-        transform(chunk, encoding, callback) {
-          bytes += chunk.length;
-          callback(bytes > 100 * 1024 * 1024 ? new Error('Video must be 100 MB or smaller.') : null, chunk);
-        },
-      });
-      try {
-        await pipeline(request, limiter, createWriteStream(filePath, { flags: 'wx' }));
-      } catch (error) {
-        await unlink(filePath).catch(() => {});
-        throw error;
-      }
-      return send(response, 201, { video: { url: `/uploads/${fileName}`, name: decodeURIComponent(String(request.headers['x-file-name'] || 'combo-video')), size: bytes, type: contentType } });
+      return send(response, 410, { error: 'Upload videos through the Vercel Blob client endpoint.' });
     }
     if (request.method === 'GET' && path === '/api/combos') {
       const { rows: combos } = await query(`SELECT data || jsonb_build_object('id',id,'userId',user_id,'createdAt',created_at,'updatedAt',updated_at) AS combo FROM combos WHERE user_id=$1 AND deleted_at IS NULL ORDER BY updated_at DESC`, [auth.user.id]);
@@ -394,17 +387,23 @@ const server = createServer(async (request, response) => {
 
     return send(response, 404, { error: 'Route not found.' });
   } catch (error) {
-    console.error(error);
+    console.error({ requestId, method: request.method, path, error });
     return send(response, error.status || 500, { error: error.status ? error.message : 'The server could not complete the request.' });
   }
-});
+};
 
-try {
-  await connectDatabase();
-  server.listen(port, () => console.log(`Hadoukraft API running on http://localhost:${port} with PostgreSQL`));
-} catch (error) {
-  console.error(`PostgreSQL connection failed: ${error.message}`);
-  process.exitCode = 1;
+export default handler;
+
+const server = createServer(handler);
+
+if (!process.env.VERCEL) {
+  try {
+    await connectDatabase();
+    server.listen(port, () => console.log(`Hadoukraft API running on http://localhost:${port} with PostgreSQL`));
+  } catch (error) {
+    console.error(`PostgreSQL connection failed: ${error.message}`);
+    process.exitCode = 1;
+  }
 }
 
 const shutdown = async () => {
