@@ -4,6 +4,7 @@ import { promisify } from 'node:util';
 import { handleUpload } from '@vercel/blob/client';
 import { closeDatabase, connectDatabase, query, transaction } from './db.js';
 
+// Configuration: server port, upload limits, sessions, and proxy behavior.
 const scrypt = promisify(scryptCallback);
 const port = Number(process.env.PORT || 3001);
 const videoTypes = ['video/mp4', 'video/webm', 'video/quicktime'];
@@ -21,6 +22,7 @@ class RequestError extends Error {
   }
 }
 
+// Request helpers: read JSON safely and send consistent JSON responses.
 const send = (response, status, body, extraHeaders = {}) => {
   response.writeHead(status, {
     'Content-Type': 'application/json; charset=utf-8',
@@ -43,6 +45,7 @@ const readBody = async (request) => {
   }
 };
 
+// Authentication helpers: password hashing, cookies, and database sessions.
 const hashPassword = async (password, salt = randomBytes(16).toString('hex')) => {
   const hash = await scrypt(password, salt, 64);
   return { salt, hash: hash.toString('hex') };
@@ -79,6 +82,7 @@ const cookieValue = (request, name) => String(request.headers.cookie || '')
   .map((part) => part.trim().split('='))
   .find(([key]) => key === name)?.slice(1).join('=');
 
+// Rate limiting: protects registration and login from repeated attempts.
 const rateLimitKey = (request, scope, discriminator = '') => {
   const forwardedAddress = String(request.headers['x-forwarded-for'] || '').split(',')[0].trim();
   const address = (trustProxy && forwardedAddress) || request.socket.remoteAddress || 'unknown';
@@ -123,6 +127,7 @@ const authenticate = async (request) => {
   return { user: session, token };
 };
 
+// Combo validation: checks user input before saving it to PostgreSQL.
 const validateCombo = (body) => {
   const character = String(body.character || '').trim();
   const title = String(body.title || '').trim();
@@ -145,6 +150,7 @@ const handler = async (request, response) => {
   const path = url.pathname;
 
   try {
+    // Public system routes: health monitoring and the secured Vercel cron job.
     if (request.method === 'GET' && path === '/api/health') {
       await connectDatabase();
       return send(response, 200, { status: 'ok', database: 'connected' });
@@ -161,6 +167,7 @@ const handler = async (request, response) => {
       return send(response, 200, { status: 'ok', deleted: { sessions: sessions.rowCount, rateLimits: rateLimits.rowCount } });
     }
 
+    // Public authentication routes: account registration and login.
     if (request.method === 'POST' && path === '/api/auth/register') {
       const body = await readBody(request);
       const registrationLimit = await consumeRateLimit(request, 'register', 5, 60 * 60 * 1000);
@@ -204,6 +211,7 @@ const handler = async (request, response) => {
       });
     }
 
+    // Upload route: issues short-lived Vercel Blob upload tokens.
     if (request.method === 'POST' && path === '/api/uploads/token') {
       const body = await readBody(request);
       const uploadResponse = await handleUpload({
@@ -230,10 +238,14 @@ const handler = async (request, response) => {
       return send(response, 200, uploadResponse);
     }
 
+    // Access gate: explore and published combo details are public; other routes require a session.
+    const comboMatch = path.match(/^\/api\/combos\/([^/]+)$/);
     const auth = await authenticate(request);
     const isPublicExplore = request.method === 'GET' && path === '/api/explore';
-    if (!auth && !isPublicExplore) return send(response, 401, { error: 'Authentication required.' });
+    const isPublicComboDetail = request.method === 'GET' && Boolean(comboMatch);
+    if (!auth && !isPublicExplore && !isPublicComboDetail) return send(response, 401, { error: 'Authentication required.' });
 
+    // Session and notification routes.
     if (request.method === 'GET' && path === '/api/auth/me') return send(response, 200, { user: publicUser(auth.user) });
     if (request.method === 'POST' && path === '/api/auth/logout') {
       await query('DELETE FROM sessions WHERE token=$1', [auth.token]);
@@ -259,6 +271,7 @@ const handler = async (request, response) => {
       const result = await query('DELETE FROM notifications WHERE id=$1 AND user_id=$2', [decodeURIComponent(notificationMatch[1]), auth.user.id]);
       return result.rowCount ? send(response, 200, { message: 'Notification deleted.' }) : send(response, 404, { error: 'Notification not found.' });
     }
+    // Profile routes: images, profile details, and following players.
     if (request.method === 'POST' && path === '/api/profile/image') {
       const kind = url.searchParams.get('kind');
       if (!['avatar', 'cover'].includes(kind)) return send(response, 400, { error: 'Image kind must be avatar or cover.' });
@@ -312,6 +325,7 @@ const handler = async (request, response) => {
       });
       return send(response, 200, result);
     }
+    // Combo routes: list, explore, create, view, edit, delete, and like.
     if (request.method === 'POST' && path === '/api/videos') {
       return send(response, 410, { error: 'Upload videos through the Vercel Blob client endpoint.' });
     }
@@ -339,13 +353,12 @@ const handler = async (request, response) => {
       return send(response, 201, { combo });
     }
 
-    const comboMatch = path.match(/^\/api\/combos\/([^/]+)$/);
     if (comboMatch && request.method === 'GET') {
       const { rows: [result] } = await query(`SELECT c.data || jsonb_build_object('id',c.id,'userId',c.user_id,'createdAt',c.created_at,'updatedAt',c.updated_at,
         'creator',u.name,'avatarUrl',coalesce(u.avatar_url,''),'likes',(SELECT count(*)::int FROM likes WHERE combo_id=c.id),
         'liked',EXISTS(SELECT 1 FROM likes WHERE combo_id=c.id AND user_id=$1)) AS combo
         FROM combos c JOIN users u ON u.id=c.user_id WHERE c.id=$2 AND c.deleted_at IS NULL
-        AND (c.user_id=$1 OR (c.data->>'status'='Published' AND c.data->>'visibility'='Public'))`, [auth.user.id, decodeURIComponent(comboMatch[1])]);
+        AND (c.user_id=$1 OR (c.data->>'status'='Published' AND c.data->>'visibility'='Public'))`, [auth?.user.id || null, decodeURIComponent(comboMatch[1])]);
       return result ? send(response, 200, { combo: result.combo }) : send(response, 404, { error: 'Combo not found.' });
     }
     if (comboMatch && request.method === 'PUT') {
@@ -394,6 +407,7 @@ const handler = async (request, response) => {
 
 export default handler;
 
+// Local development server: Vercel imports the handler above instead.
 const server = createServer(handler);
 
 if (!process.env.VERCEL) {

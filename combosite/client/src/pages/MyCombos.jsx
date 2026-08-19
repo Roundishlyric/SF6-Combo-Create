@@ -21,6 +21,7 @@ const relativeDate = (date) => {
   return `${days} days ago`;
 };
 
+// My Combos page: lists and manages combos owned by the signed-in user.
 function MyCombos({ navigate, user, notify }) {
   const [personalCombos, setPersonalCombos] = useState([]);
   const [loading, setLoading] = useState(true);

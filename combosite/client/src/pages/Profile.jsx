@@ -13,6 +13,7 @@ const fighterColor = (fighter) => {
   return 'red';
 };
 
+// Profile page: displays player details, uploads, follows, and published combos.
 function Profile({ navigate, user, profileId, onLogout, onUserUpdate }) {
   const [combos, setCombos] = useState([]);
   const [likedCombos, setLikedCombos] = useState([]);

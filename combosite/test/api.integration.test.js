@@ -56,6 +56,12 @@ integrationTest('combo ownership prevents another user from editing', async () =
   const firstCookie = firstLogin.response.headers.get('set-cookie');
   const created = await api('/api/combos', { cookie: firstCookie, body: combo });
   assert.equal(created.response.status, 201);
+  const publicDetail = await api(`/api/combos/${created.body.combo.id}`);
+  assert.equal(publicDetail.response.status, 200);
+  assert.equal(publicDetail.body.combo.title, combo.title);
+  const privateCombo = await api('/api/combos', { cookie: firstCookie, body: { ...combo, title: 'Private route', visibility: 'Private' } });
+  assert.equal(privateCombo.response.status, 201);
+  assert.equal((await api(`/api/combos/${privateCombo.body.combo.id}`)).response.status, 404);
   await api('/api/auth/register', { body: { name: 'Ken Player', email: 'ken@example.test', password: 'Hadouken123' } });
   const secondLogin = await api('/api/auth/login', { body: { email: 'ken@example.test', password: 'Hadouken123' } });
   const secondCookie = secondLogin.response.headers.get('set-cookie');

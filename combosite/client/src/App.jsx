@@ -1,8 +1,9 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
-import { getSession, loginUser, logoutUser, registerUser, updateSessionUser } from './lib/api.js';
+import { getSession, loginUser, logoutUser, registerUser, revalidateSession, updateSessionUser } from './lib/api.js';
 import SkeletonLoader from './components/SkeletonLoader.jsx';
 import Snackbar from './components/Snackbar.jsx';
 
+// Page loading: each screen is downloaded only when the user visits it.
 const Login = lazy(() => import('./pages/Login.jsx'));
 const Register = lazy(() => import('./pages/Register.jsx'));
 const Home = lazy(() => import('./pages/Home.jsx'));
@@ -12,9 +13,15 @@ const Combos = lazy(() => import('./pages/Combos.jsx'));
 const MyCombos = lazy(() => import('./pages/MyCombos.jsx'));
 const ComboDetail = lazy(() => import('./pages/ComboDetail.jsx'));
 
+function NotFound({ navigate }) {
+  return <main className="not-found"><span>404</span><h1>Page not found</h1><p>The page may have moved, or the address may be incorrect.</p><button type="button" onClick={() => navigate('/home')}>Return home</button></main>;
+}
+
 function App() {
+  // Application state: current URL, signed-in user, loading, and messages.
   const [path, setPath] = useState(window.location.pathname);
   const [user, setUser] = useState(getSession);
+  const [sessionReady, setSessionReady] = useState(() => !getSession());
   const [snackbar, setSnackbar] = useState(null);
 
   const notify = useCallback((message, type = 'success') => {
@@ -22,12 +29,27 @@ function App() {
   }, []);
   const closeSnackbar = useCallback(() => setSnackbar(null), []);
 
+  // Browser navigation: keeps React in sync with Back and Forward buttons.
   useEffect(() => {
     const onPopState = () => setPath(window.location.pathname);
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
   }, []);
 
+  // Session check: confirms that the saved browser session still exists on the server.
+  useEffect(() => {
+    const handleUnauthorized = () => setUser(null);
+    window.addEventListener('hadoukraft:unauthorized', handleUnauthorized);
+    if (!sessionReady) {
+      revalidateSession()
+        .then(setUser)
+        .catch(() => setUser(null))
+        .finally(() => setSessionReady(true));
+    }
+    return () => window.removeEventListener('hadoukraft:unauthorized', handleUnauthorized);
+  }, [sessionReady]);
+
+  // Client-side navigation: changes pages without reloading the website.
   const navigate = (to) => {
     window.history.pushState({}, '', to);
     setPath(to);
@@ -55,9 +77,12 @@ function App() {
 
   const updateUser = (details) => setUser(updateSessionUser(details));
 
+  // Frontend routes: selects the page that matches the current URL.
   let page;
 
-  if (path === '/register') {
+  if (!sessionReady) {
+    page = <div className="route-loading"><SkeletonLoader variant="card" count={3} /></div>;
+  } else if (path === '/register') {
     page = user ? <Home navigate={navigate} user={user} /> : <Register navigate={navigate} onRegister={register} />;
   } else if (path === '/login') {
     page = user ? <Home navigate={navigate} user={user} /> : <Login navigate={navigate} onLogin={login} />;
@@ -65,23 +90,25 @@ function App() {
     page = <Home navigate={navigate} user={user} />;
   } else if (path === '/combos') {
     page = <Combos navigate={navigate} user={user} />;
-  } else if (!user) {
+  } else if (path.startsWith('/combos/') && !path.endsWith('/edit')) {
+    const comboId = decodeURIComponent(path.slice('/combos/'.length));
+    page = <ComboDetail navigate={navigate} user={user} comboId={comboId} />;
+  } else if (!user && (path === '/create' || path === '/my-combos' || path === '/profile' || path.startsWith('/profile/') || (path.startsWith('/combos/') && path.endsWith('/edit')))) {
     page = <Login navigate={navigate} onLogin={login} />;
+  } else if (!user) {
+    page = <NotFound navigate={navigate} />;
   } else if (path === '/create') {
     page = <Create navigate={navigate} user={user} notify={notify} />;
   } else if (path.startsWith('/combos/') && path.endsWith('/edit')) {
     const comboId = decodeURIComponent(path.slice('/combos/'.length, -'/edit'.length));
     page = <Create navigate={navigate} user={user} comboId={comboId} notify={notify} />;
-  } else if (path.startsWith('/combos/')) {
-    const comboId = decodeURIComponent(path.slice('/combos/'.length));
-    page = <ComboDetail navigate={navigate} user={user} comboId={comboId} />;
   } else if (path === '/my-combos') {
     page = <MyCombos navigate={navigate} user={user} notify={notify} />;
   } else if (path === '/profile' || path.startsWith('/profile/')) {
     const profileId = path.startsWith('/profile/') ? decodeURIComponent(path.slice('/profile/'.length)) : user.id;
     page = <Profile navigate={navigate} user={user} profileId={profileId} onLogout={logout} onUserUpdate={updateUser} />;
   } else {
-    page = <Home navigate={navigate} user={user} />;
+    page = <NotFound navigate={navigate} />;
   }
 
   return <><Suspense fallback={<div className="route-loading"><SkeletonLoader variant="card" count={3} /></div>}>{page}</Suspense><Snackbar snackbar={snackbar} onClose={closeSnackbar} /></>;

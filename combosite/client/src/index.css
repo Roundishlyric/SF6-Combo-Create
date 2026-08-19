@@ -93,6 +93,21 @@ body {
   background: #0b0806;
 }
 
+.not-found {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  min-height: 100svh;
+  padding: 32px;
+  box-sizing: border-box;
+  color: #a1a9b7;
+  background: #0b0806;
+}
+.not-found > span { color: #f2c14e; font-weight: 850; }
+.not-found h1 { margin: 12px 0 8px; color: #f8f4ed; font-size: 40px; letter-spacing: 0; }
+.not-found p { max-width: 420px; }
+.not-found button { margin-top: 24px; padding: 11px 16px; border: 0; background: #ff5937; color: white; font: inherit; font-weight: 750; cursor: pointer; }
+
 .sr-only {
   position: absolute;
   width: 1px;

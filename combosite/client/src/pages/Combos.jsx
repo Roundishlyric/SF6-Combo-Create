@@ -104,6 +104,7 @@ function Header({ navigate, active, user }) {
   );
 }
 
+// Explore page: searches, filters, sorts, likes, follows, and shares public combos.
 function Combos({ navigate, user }) {
   const [communityCombos, setCommunityCombos] = useState([]);
   const [query, setQuery] = useState('');
@@ -179,7 +180,7 @@ function Combos({ navigate, user }) {
   };
 
   const shareCombo = async (combo) => {
-    const url = `${window.location.origin}/combos`;
+    const url = `${window.location.origin}/combos/${encodeURIComponent(combo.id)}`;
     const text = `${combo.character} — ${combo.title}\n${combo.notation}`;
     const shareData = {
       title: `${combo.title} | HadouKraft`,

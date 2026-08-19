@@ -3,6 +3,7 @@ import AuthLayout from '../components/AuthLayout.jsx';
 import sf6 from '../assets/sf6-optimized.jpg';
 import '../styles/Login.css';
 
+// Login page: collects credentials and starts a browser session.
 function Login({ navigate, onLogin }) {
   const [form, setForm] = useState({ email: '', password: '', remember: false });
   const [error, setError] = useState('');

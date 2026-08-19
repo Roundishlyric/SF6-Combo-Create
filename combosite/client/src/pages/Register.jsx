@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import AuthLayout from '../components/AuthLayout.jsx';
 
+// Registration page: validates details and creates a new account.
 function Register({ navigate, onRegister }) {
   const [form, setForm] = useState({ name: '', email: '', password: '', confirmPassword: '' });
   const [error, setError] = useState('');

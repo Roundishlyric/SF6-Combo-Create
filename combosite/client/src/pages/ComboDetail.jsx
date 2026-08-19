@@ -5,6 +5,7 @@ import { getCharacterImage } from '../lib/characterImages.js';
 import '../styles/Home.css';
 import '../styles/ComboDetail.css';
 
+// Combo detail page: displays one public combo and its video, notation, and stats.
 function ComboDetail({ navigate, user, comboId }) {
   const [combo, setCombo] = useState(null);
   const [error, setError] = useState('');
@@ -16,6 +17,10 @@ function ComboDetail({ navigate, user, comboId }) {
   }, [comboId]);
 
   const like = async () => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
     try {
       const result = await toggleComboLike(combo.id);
       setCombo((current) => ({ ...current, liked: result.liked, likes: result.likes }));

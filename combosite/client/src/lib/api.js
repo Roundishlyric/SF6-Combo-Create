@@ -1,14 +1,19 @@
 import { upload } from '@vercel/blob/client';
 
+// Browser session storage: keeps basic user details, never the secret cookie.
 const SESSION_KEY = 'hadoukraft.api-session';
+
+const clearStoredSession = () => {
+  window.localStorage.removeItem(SESSION_KEY);
+  window.sessionStorage.removeItem(SESSION_KEY);
+};
 
 const storedSession = () => {
   try {
     const value = window.sessionStorage.getItem(SESSION_KEY) || window.localStorage.getItem(SESSION_KEY);
     const session = value ? JSON.parse(value) : null;
     if (session && (!session.expiresAt || new Date(session.expiresAt).getTime() <= Date.now())) {
-      window.localStorage.removeItem(SESSION_KEY);
-      window.sessionStorage.removeItem(SESSION_KEY);
+      clearStoredSession();
       return null;
     }
     return session;
@@ -17,6 +22,7 @@ const storedSession = () => {
   }
 };
 
+// Shared API request: sends JSON and clears stale sessions after a 401 response.
 const request = async (path, options = {}) => {
   const response = await fetch(path, {
     ...options,
@@ -27,20 +33,31 @@ const request = async (path, options = {}) => {
     },
   });
   const body = await response.json().catch(() => ({}));
+  if (response.status === 401) {
+    clearStoredSession();
+    window.dispatchEvent(new Event('hadoukraft:unauthorized'));
+  }
   if (!response.ok) throw new Error(body.error || 'The server could not complete the request.');
   return body;
 };
 
 const storeSession = ({ user, expiresAt }, remember = false) => {
   const session = { ...user, expiresAt };
-  window.localStorage.removeItem(SESSION_KEY);
-  window.sessionStorage.removeItem(SESSION_KEY);
+  clearStoredSession();
   const storage = remember ? window.localStorage : window.sessionStorage;
   storage.setItem(SESSION_KEY, JSON.stringify(session));
   return session;
 };
 
+// Session API functions.
 export const getSession = () => storedSession();
+
+export const revalidateSession = async () => {
+  const current = storedSession();
+  if (!current) return null;
+  const { user } = await request('/api/auth/me');
+  return updateSessionUser(user);
+};
 
 export const updateSessionUser = (user) => {
   const current = storedSession();
@@ -66,11 +83,11 @@ export const logoutUser = async () => {
   } catch {
     // A local logout should still succeed if the server session already expired.
   } finally {
-    window.localStorage.removeItem(SESSION_KEY);
-    window.sessionStorage.removeItem(SESSION_KEY);
+    clearStoredSession();
   }
 };
 
+// Profile, combo, and notification API functions.
 export const getCombos = async () => (await request('/api/combos')).combos;
 export const getProfile = async (userId) => request(`/api/users/${encodeURIComponent(userId)}/profile`);
 export const toggleFollow = async (userId) => request(`/api/users/${encodeURIComponent(userId)}/follow`, { method: 'POST' });
@@ -85,6 +102,7 @@ export const deleteNotification = async (notificationId) => request(`/api/notifi
 export const toggleComboLike = async (comboId) =>
   request(`/api/combos/${comboId}/like`, { method: 'POST' });
 
+// Vercel Blob upload functions.
 export const uploadVideo = async (file) => {
   const session = storedSession();
   if (!session?.id) throw new Error('Authentication required.');
@@ -117,6 +135,7 @@ export const uploadProfileImage = async (kind, file) => {
   return body.user;
 };
 
+// Combo write functions.
 export const saveCombo = async (combo) =>
   (await request('/api/combos', { method: 'POST', body: JSON.stringify(combo) })).combo;
 

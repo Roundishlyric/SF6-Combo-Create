@@ -13,6 +13,7 @@ const fighterColor = (fighter) => {
   return 'red';
 };
 
+// Home page: introduces the app and displays recent community activity.
 function Home({ navigate, user }) {
   const [publishedCombos, setPublishedCombos] = useState([]);
   const [myCombos, setMyCombos] = useState([]);

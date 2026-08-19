@@ -41,6 +41,7 @@ function SelectField({ label, name, value, options, onChange }) {
   );
 }
 
+// Combo editor page: creates a new combo or edits an existing owned combo.
 function Create({ navigate, user, comboId = null, notify }) {
   const [form, setForm] = useState(initialForm);
   const [submitted, setSubmitted] = useState(false);
