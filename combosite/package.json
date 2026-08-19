@@ -3,9 +3,10 @@
   "private": true,
   "type": "module",
   "engines": {
-    "node": ">=20"
+    "node": "22.x"
   },
   "scripts": {
+    "postinstall": "npm --prefix client ci",
     "dev": "node server/dev.js",
     "server": "node --env-file-if-exists=.env server/index.js",
     "client": "npm --prefix client run dev -- --host 0.0.0.0 --port 5173",
