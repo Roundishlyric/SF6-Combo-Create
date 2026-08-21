@@ -85,7 +85,7 @@ const cookieValue = (request, name) => String(request.headers.cookie || '')
 // Rate limiting: protects registration and login from repeated attempts.
 const rateLimitKey = (request, scope, discriminator = '') => {
   const forwardedAddress = String(request.headers['x-forwarded-for'] || '').split(',')[0].trim();
-  const address = (trustProxy && forwardedAddress) || request.socket.remoteAddress || 'unknown';
+  const address = (trustProxy && forwardedAddress) || request.socket?.remoteAddress || 'unknown';
   return createHash('sha256').update(`${scope}|${address}|${discriminator}`).digest('hex');
 };
 
