@@ -4,3 +4,5 @@ combosite/.env
 combosite/server/uploads/
 .env
 dist
+.vercel
+.env*
