@@ -30,8 +30,7 @@ function Login({ navigate, onLogin }) {
 
   return (
     <AuthLayout
-      heroHeading="Log in and pick up where your best matches left off."
-      heroParagraph="Save your favorite sequences, follow creators, and keep your training routine moving."
+      heroHeading="Log in and take your combos to the next level."
       heroImage={sf6}
       cardHeading={<>Welcome Back<span className="login-heading-cursor" aria-hidden="true">_</span></>}
     >

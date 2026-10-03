@@ -1,0 +1,125 @@
+/* Shared layout rules. Page styles continue to own every color. */
+.home-page {
+  --layout-width: 1180px;
+  --layout-gutter: 24px;
+  display: flex;
+  flex-direction: column;
+  min-height: 100svh;
+}
+
+.home-page :is(.home-main, .library-main, .create-main, .profile-main, .combo-detail-main) {
+  width: min(var(--layout-width), calc(100% - var(--layout-gutter) * 2));
+  margin-inline: auto;
+  padding-block: 40px 64px;
+  flex: 1;
+  min-width: 0;
+}
+
+.home-page .home-header {
+  padding-inline: max(var(--layout-gutter), calc((100% - var(--layout-width)) / 2));
+  gap: 24px;
+}
+
+.home-page .home-nav {
+  margin-left: 0;
+  gap: clamp(16px, 2vw, 28px);
+}
+
+.home-page .home-user { align-items: center; }
+.home-page .home-brand { white-space: nowrap; }
+.home-page .avatar { overflow: hidden; padding: 0; flex-shrink: 0; }
+.home-page .avatar img { display: block; width: 100%; height: 100%; object-fit: cover; }
+
+.home-page :is(.welcome-row, .library-heading, .create-heading, .section-heading, .profile-section-title) {
+  align-items: center;
+  gap: 24px;
+}
+
+.home-page :is(.welcome-row, .library-heading, .create-heading) { margin-bottom: 28px; }
+.home-page :is(.welcome-row, .library-heading, .create-heading) > div { min-width: 0; }
+.home-page .create-button { flex-shrink: 0; min-height: 48px; }
+.home-page .feature-copy { width: min(600px, 65%); padding: clamp(28px, 4vw, 52px); }
+.home-page .feature-copy h2 { text-wrap: balance; }
+.home-page :is(.combo-grid, .stats-grid, .mini-stats) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.home-page .combo-card { display: flex; flex-direction: column; min-width: 0; }
+.home-page .combo-card .combo-meta { margin-top: auto; padding-top: 16px; }
+.home-page :is(.combo-top, .explore-card-top) { grid-template-columns: auto minmax(0, 1fr) auto; }
+.home-page :is(.combo-inputs, .explore-notation, .my-combo-info code, .profile-combo-copy code, .combo-detail-route code) {
+  overflow-wrap: anywhere;
+}
+.home-page :is(.combo-card h3, .explore-card h2, .my-combo-info h2, .name-row h1, .combo-detail-fighter h1) {
+  overflow-wrap: anywhere;
+}
+.home-page :is(.my-combo-info, .identity-copy, .profile-combo-copy, .combo-detail-fighter > div) { min-width: 0; }
+.home-page .filter-sidebar { top: 100px; }
+.home-page .my-combo-row { grid-template-columns: auto minmax(0, 1fr) 75px 65px 85px auto; }
+.home-page :is(.explore-meta, .combo-meta, .creator-actions, .player-tags, .name-row) { flex-wrap: wrap; }
+.home-page .search-box input { min-width: 0; }
+.home-page .form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.home-page .profile-actions { flex-wrap: wrap; }
+.home-page .home-footer {
+  margin-top: auto;
+  padding-inline: max(var(--layout-gutter), calc((100% - var(--layout-width)) / 2));
+}
+
+@media (max-width: 1000px) {
+  .home-page .home-header {
+    height: auto;
+    min-height: 76px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0 16px;
+    padding-top: 16px;
+  }
+  .home-page .home-user { grid-column: 2; grid-row: 1; }
+  .home-page .home-nav {
+    display: flex;
+    grid-column: 1 / -1;
+    width: 100%;
+    height: 48px;
+    margin-top: 8px;
+    overflow-x: auto;
+  }
+  .home-page .home-nav a { flex-shrink: 0; white-space: nowrap; font-size: .8rem; }
+  .home-page .filter-sidebar, .home-page .publish-panel { top: 148px; }
+  .home-page .stats-grid article { padding: 16px; gap: 10px; }
+}
+
+@media (max-width: 860px) {
+  .home-page { --layout-gutter: 20px; }
+  .home-page :is(.home-main, .library-main, .create-main, .profile-main, .combo-detail-main) { padding-block: 28px 48px; }
+  .home-page :is(.combo-grid, .stats-grid, .mini-stats) { grid-template-columns: 1fr; }
+  .home-page .library-layout { grid-template-columns: 1fr; }
+  .home-page .filter-sidebar { position: static; }
+  .home-page .my-combo-row { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .home-page :is(.my-combo-number, .updated) { display: none; }
+  .home-page .combo-form { grid-template-columns: 1fr; }
+  .home-page .publish-panel { position: static; grid-column: 1; grid-row: auto; }
+  .home-page .profile-identity { grid-template-columns: auto minmax(0, 1fr); }
+}
+
+@media (max-width: 600px) {
+  .home-page { --layout-gutter: 16px; }
+  .home-page :is(.welcome-row, .library-heading, .create-heading, .profile-section-title) {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+  }
+  .home-page .section-heading { align-items: flex-start; gap: 12px; }
+  .home-page .section-heading button { flex-shrink: 0; }
+  .home-page .feature-copy { width: 100%; padding: 32px 24px; }
+  .home-page .feature-copy h2 { font-size: clamp(2rem, 8vw, 2.7rem); }
+  .home-page .feature-stat { display: none; }
+  .home-page .form-grid { grid-template-columns: minmax(0, 1fr); }
+  .home-page .form-panel { padding: 20px; }
+  .home-page .video-dropzone { grid-template-columns: auto minmax(0, 1fr); }
+  .home-page .browse-video { grid-column: 2; justify-self: start; }
+  .home-page .profile-identity { grid-template-columns: minmax(0, 1fr); }
+  .home-page .profile-actions { grid-column: 1; }
+  .home-page .profile-tabs { flex-wrap: wrap; }
+  .home-page .combo-detail-heading { align-items: flex-start; gap: 12px; }
+  .home-page .combo-detail-fighter { min-width: 0; align-items: flex-start; }
+  .home-page .combo-detail-fighter img { flex-shrink: 0; }
+  .home-page .detail-like { min-width: 56px; padding-inline: 10px; }
+  .home-page .home-footer { flex-wrap: wrap; gap: 12px 20px; }
+  .home-page .home-footer small { width: 100%; margin-left: 0; }
+}

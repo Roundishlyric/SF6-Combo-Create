@@ -10,13 +10,13 @@ function AuthLayout({ heroHeading, heroParagraph, heroImage, cardHeading, cardDe
           {heroImage && <img className="login-hero-art" src={heroImage} alt="" />}
           <div>
             <h1>{heroHeading}</h1>
-            <p>{heroParagraph}</p>
+            {heroParagraph && <p>{heroParagraph}</p>}
           </div>
         </section>
 
         <section className="login-card">
           <h2>{cardHeading}</h2>
-          <p>{cardDescription}</p>
+          {cardDescription && <p>{cardDescription}</p>}
           {children}
         </section>
       </div>

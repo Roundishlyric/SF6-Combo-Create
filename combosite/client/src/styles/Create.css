@@ -13,6 +13,11 @@
 .panel-heading p, .publish-panel > div > p:last-child { color: #737d90; font-size: .7rem; line-height: 1.5; }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 19px 16px; }
 .combo-form label { display: flex; flex-direction: column; gap: 8px; color: #cdd2dc; font-size: .68rem; font-weight: 800; letter-spacing: .025em; }
+.combo-form label,
+.panel-heading,
+.publish-panel {
+  text-align: left;
+}
 .combo-form label.wide { grid-column: 1 / -1; }
 .combo-form input, .combo-form select, .combo-form textarea { width: 100%; box-sizing: border-box; border: 1px solid rgba(255,255,255,.1); border-radius: 9px; outline: 0; background: #080b12; color: #edf0f5; font: 500 .78rem/1.4 inherit; transition: border-color .2s, box-shadow .2s; }
 .combo-form input, .combo-form select { height: 44px; padding: 0 13px; }
@@ -45,11 +50,11 @@
 .publish-panel > div:first-child { padding-bottom: 20px; margin-bottom: 20px; border-bottom: 1px solid var(--home-border); }
 .publish-panel label { margin-bottom: 20px; }
 .form-actions { display: grid; gap: 9px; }
-.form-actions button { height: 42px; border-radius: 9px; font: inherit; font-size: .72rem; font-weight: 800; cursor: pointer; transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease, background .18s ease; }
+.form-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 42px; border-radius: 9px; font: inherit; font-size: .72rem; font-weight: 800; line-height: 1.2; text-align: center; cursor: pointer; transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease, background .18s ease; }
 .secondary-button { border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.035); color: #a0a8b7; }
 .secondary-button:hover { border-color: rgba(255,255,255,.25); background: rgba(255,255,255,.07); transform: translateY(-1px); }
 .publish-button { border: 0; background: linear-gradient(100deg, #ff4328, #ff7433); color: #fff; box-shadow: 0 10px 25px rgba(255,64,38,.18); }.publish-button:hover { transform: translateY(-1px); box-shadow: 0 12px 28px rgba(255,64,38,.28); }
-.publish-button span { margin-left: 10px; }
+.publish-button span { margin-left: 2px; line-height: 1; }
 .success-message { margin-top: 14px; color: #65d6a1; font-size: .65rem; line-height: 1.5; text-align: center; }
 .publish-error { margin-top: 14px; color: #ff755a; font-size: .62rem; line-height: 1.5; text-align: center; }
 @media (max-width: 780px) { .create-main { width: min(100% - 28px, 1040px); padding-top: 32px; }.combo-form { grid-template-columns: 1fr; }.publish-panel { position: static; grid-column: 1; grid-row: auto; }.form-actions { grid-template-columns: 1fr 1fr; } }

@@ -102,6 +102,7 @@ body {
   box-sizing: border-box;
   color: #a1a9b7;
   background: #0b0806;
+  text-align: center;
 }
 .not-found > span { color: #f2c14e; font-weight: 850; }
 .not-found h1 { margin: 12px 0 8px; color: #f8f4ed; font-size: 40px; letter-spacing: 0; }
@@ -141,15 +142,30 @@ body {
 @media (prefers-reduced-motion: reduce) { .skeleton-shell::after, .skeleton-block::after { animation: none; } }
 
 #root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
+  width: 100%;
+  text-align: left;
   min-height: 100svh;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
+}
+
+/* Keep text and controls on a predictable baseline across every route. */
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
+button {
+  line-height: 1.2;
+}
+
+input,
+select,
+textarea {
+  text-align: left;
 }
 
 h1,
