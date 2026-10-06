@@ -65,7 +65,7 @@ function Home({ navigate, user }) {
     <div className="home-page">
       <header className="home-header">
         <a className="home-brand" href="/home" onClick={(event) => go(event, '/home')}>
-          <span className="brand-mark">HK</span>
+          <img className="home-brand-logo" src="/logo%20no%20bg.png" alt="" width="52" height="52" />
           <span>Hadou<span>Kraft</span></span>
         </a>
 

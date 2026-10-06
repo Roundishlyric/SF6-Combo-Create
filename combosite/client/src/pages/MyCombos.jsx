@@ -127,7 +127,7 @@ function MyCombos({ navigate, user, notify }) {
               </article>
             ))}
           </div>
-          {!loading && !loadError && combos.length === 0 && <div className="empty-results"><strong>No combos here yet</strong><p>Try a different search or create a new combo.</p></div>}
+          {!loading && !loadError && combos.length === 0 && <div className="empty-results"><strong>No combos here yet</strong></div>}
           <div className="library-footer"><span>Showing {combos.length} of {personalCombos.length} combos</span></div>
         </section>
       </main>

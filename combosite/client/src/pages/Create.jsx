@@ -172,7 +172,7 @@ function Create({ navigate, user, comboId = null, notify }) {
       <ConfirmDialog open={showPublishConfirm} title={comboId ? 'Save these changes?' : 'Publish this combo?'} message={comboId ? `Your updates to “${form.title.trim()}” will be saved.` : `“${form.title.trim()}” will be published as a ${form.visibility.toLowerCase()} combo.`} confirmLabel={comboId ? 'Save Changes' : 'Publish Combo'} busy={publishing} onConfirm={confirmSubmit} onCancel={() => setShowPublishConfirm(false)} />
       <header className="home-header">
         <a className="home-brand" href="/home" onClick={(event) => go(event, '/home')}>
-          <span className="brand-mark">HK</span>
+          <img className="home-brand-logo" src="/logo%20no%20bg.png" alt="" width="52" height="52" />
           <span>Hadou<span>Kraft</span></span>
         </a>
 

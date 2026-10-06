@@ -57,6 +57,12 @@
 .home-page .combo-form input,
 .home-page .combo-form select,
 .home-page .combo-form textarea { background: #0d0906; }
+.home-page .character-options { background: var(--sf-surface); border-color: var(--home-border); scrollbar-width: thin; scrollbar-color: #5b3324 var(--sf-surface); }
+.home-page .character-options button { color: #e5d6c8; }
+.home-page .character-options button:hover,
+.home-page .character-options button:focus-visible,
+.home-page .character-options button.selected { background: rgba(255, 122, 47, .1); color: #fff; }
+.home-page .character-options button b { color: var(--sf-gold); }
 .home-page .combo-card:hover,
 .home-page .explore-card:hover { border-color: rgba(255, 122, 47, .42); }
 .home-page .filter-panel select:focus-visible,
@@ -76,7 +82,7 @@
 .home-page .stat-icon.purple { color: #c784ff; background: rgba(168, 92, 255, .1); }
 .home-page .section-heading h2,
 .home-page .library-heading h1,
-.home-page .create-heading h1 { background: linear-gradient(90deg, #fff 15%, #ffd7bd 70%, var(--sf-gold)); background-clip: text; -webkit-background-clip: text; color: transparent; }
+.home-page .create-heading h1 { color: #fff; }
 .home-page .combo-card,
 .home-page .explore-card,
 .home-page .form-panel,
@@ -122,6 +128,7 @@
 }
 
 .home-brand { display: flex; align-items: center; gap: 11px; color: white; text-decoration: none; font-weight: 800; font-size: 1.05rem; }
+.home-brand-logo { display: block; width: 52px; height: 52px; flex-shrink: 0; object-fit: contain; }
 .avatar { overflow: hidden; }.avatar img { width: 100%; height: 100%; object-fit: cover; }
 .home-brand > span:last-child span { color: #ff5538; }
 .brand-mark { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 11px; background: linear-gradient(135deg, #ff3d21, #ff8a32); font-size: .74rem; font-style: italic; box-shadow: 0 8px 24px rgba(255, 75, 36, .25); }

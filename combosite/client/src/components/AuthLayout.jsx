@@ -15,6 +15,10 @@ function AuthLayout({ heroHeading, heroParagraph, heroImage, cardHeading, cardDe
         </section>
 
         <section className="login-card">
+          <a className="login-brand" href="/home">
+            <img src="/logo%20no%20bg.png" alt="" width="52" height="52" />
+            <span>HadouKraft</span>
+          </a>
           <h2>{cardHeading}</h2>
           {cardDescription && <p>{cardDescription}</p>}
           {children}

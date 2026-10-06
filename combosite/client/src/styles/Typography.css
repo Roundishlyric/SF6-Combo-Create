@@ -1,0 +1,38 @@
+/* One typeface across every route, including forms and combo notation.
+   Root scoping keeps lazy-loaded page styles from changing the typeface. */
+:root {
+  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
+  --heading: var(--sans);
+  --mono: var(--sans);
+}
+
+#root,
+#root * {
+  font-family: var(--sans);
+  font-style: normal;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+#root :is(h1, h2, h3, h4, h5, h6) {
+  font-weight: 700;
+  letter-spacing: -.025em;
+  line-height: 1.2;
+  text-transform: none;
+}
+
+#root :is(.welcome-row, .library-heading, .create-heading) h1,
+#root .combo-detail-fighter h1,
+#root .login-card h2 {
+  font-size: clamp(1.75rem, 3vw, 2.5rem);
+}
+
+#root :is(button, input, select, textarea) {
+  letter-spacing: normal;
+}
+
+#root button { font-weight: 600; }
+#root :is(input, select, textarea) { font-weight: 400; }
+#root input::placeholder,
+#root textarea::placeholder { font-family: inherit; font-style: normal; }

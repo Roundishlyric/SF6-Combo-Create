@@ -83,7 +83,7 @@ function Profile({ navigate, user, profileId, onLogout, onUserUpdate }) {
     <div className="home-page profile-page">
       <header className="home-header">
         <a className="home-brand" href="/home" onClick={(event) => go(event, '/home')}>
-          <span className="brand-mark">HK</span>
+          <img className="home-brand-logo" src="/logo%20no%20bg.png" alt="" width="52" height="52" />
           <span>Hadou<span>Kraft</span></span>
         </a>
         <nav className="home-nav" aria-label="Main navigation">
@@ -189,7 +189,7 @@ function Profile({ navigate, user, profileId, onLogout, onUserUpdate }) {
         </div>
       )}
       {snackbar && <div className={`profile-snackbar ${snackbar.type}`} role="status" aria-live="polite"><span>{snackbar.type === 'success' ? '✓' : '!'}</span>{snackbar.message}<button type="button" onClick={() => setSnackbar(null)} aria-label="Dismiss notification">×</button></div>}
-      <footer className="home-footer"><span>Hadoukraft</span><p>Train smarter. Hit harder.</p><small>© 2026 Hadoukraft</small></footer>
+      <footer className="home-footer"><span>Hadoukraft</span><small>© 2026 Hadoukraft</small></footer>
     </div>
   );
 }

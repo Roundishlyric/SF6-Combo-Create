@@ -85,7 +85,7 @@ function Header({ navigate, active, user }) {
   const go = (event, path) => { event.preventDefault(); navigate(path); };
   return (
     <header className="home-header">
-      <a className="home-brand" href="/home" onClick={(event) => go(event, '/home')}><span className="brand-mark">HK</span><span>Hadou<span>Kraft</span></span></a>
+      <a className="home-brand" href="/home" onClick={(event) => go(event, '/home')}><img className="home-brand-logo" src="/logo%20no%20bg.png" alt="" width="52" height="52" /><span>Hadou<span>Kraft</span></span></a>
       <nav className="home-nav" aria-label="Main navigation">
         <a className={active === 'home' ? 'active' : ''} href="/home" onClick={(event) => go(event, '/home')}>Home</a>
         {user && <a href="/create" onClick={(event) => go(event, '/create')}>Create Combo</a>}
