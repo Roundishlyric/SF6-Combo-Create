@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import '../styles/Home.css';
 import '../styles/Create.css';
 import { getCombos, saveCombo, updateCombo, uploadVideo } from '../lib/api.js';
@@ -29,7 +29,15 @@ function SelectField({ label, name, value, options, onChange }) {
   const [open, setOpen] = useState(false);
   return (
     <label>{label}
-      <div className={`styled-select ${open ? 'open' : ''}`} onBlur={() => window.setTimeout(() => setOpen(false), 100)}>
+      <div className={`styled-select ${open ? 'open' : ''}`} onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
+      }} onKeyDown={(event) => {
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          setOpen(false);
+          event.currentTarget.querySelector('.styled-select-trigger').focus();
+        }
+      }}>
         <button type="button" className="styled-select-trigger" onClick={() => setOpen((current) => !current)} aria-haspopup="listbox" aria-expanded={open}>
           <span>{value}</span><i aria-hidden="true" />
         </button>
@@ -54,6 +62,8 @@ function Create({ navigate, user, comboId = null, notify }) {
   const [submitError, setSubmitError] = useState('');
   const [existingVideo, setExistingVideo] = useState(null);
   const [existingStatus, setExistingStatus] = useState('Published');
+  const [comboStatus, setComboStatus] = useState('Published');
+  const videoInput = useRef(null);
   const [showPublishConfirm, setShowPublishConfirm] = useState(false);
   const [publishing, setPublishing] = useState(false);
 
@@ -69,6 +79,7 @@ function Create({ navigate, user, comboId = null, notify }) {
         setCharacterQuery(combo.character || '');
         setExistingVideo(combo.video || null);
         setExistingStatus(combo.status || 'Draft');
+        setComboStatus(combo.status || 'Draft');
       })
       .catch((problem) => { if (active) setSubmitError(problem.message); });
     return () => { active = false; };
@@ -121,7 +132,7 @@ function Create({ navigate, user, comboId = null, notify }) {
       const uploadedVideo = video ? await uploadVideo(video) : null;
       const combo = {
         ...form,
-        status: comboId ? existingStatus : 'Published',
+        status: comboStatus,
         video: uploadedVideo || existingVideo,
       };
       if (comboId) await updateCombo(comboId, combo);
@@ -167,9 +178,20 @@ function Create({ navigate, user, comboId = null, notify }) {
     setVideoPreviewUrl(URL.createObjectURL(file));
   };
 
+  const removeVideo = () => {
+    setVideo(null);
+    setExistingVideo(null);
+    setVideoPreviewUrl('');
+    setVideoError('');
+    if (videoInput.current) videoInput.current.value = '';
+  };
+
+  const publishingDraft = comboId && existingStatus === 'Draft' && comboStatus === 'Published';
+  const submitLabel = !comboId || publishingDraft ? 'Publish Combo' : 'Save Changes';
+
   return (
     <div className="home-page create-page">
-      <ConfirmDialog open={showPublishConfirm} title={comboId ? 'Save these changes?' : 'Publish this combo?'} message={comboId ? `Your updates to “${form.title.trim()}” will be saved.` : `“${form.title.trim()}” will be published as a ${form.visibility.toLowerCase()} combo.`} confirmLabel={comboId ? 'Save Changes' : 'Publish Combo'} busy={publishing} onConfirm={confirmSubmit} onCancel={() => setShowPublishConfirm(false)} />
+      <ConfirmDialog open={showPublishConfirm} title={!comboId || publishingDraft ? 'Publish this combo?' : 'Save these changes?'} message={!comboId || publishingDraft ? `“${form.title.trim()}” will be published as a ${form.visibility.toLowerCase()} combo.` : `Your updates to “${form.title.trim()}” will be saved as ${comboStatus === 'Draft' ? 'a draft' : 'a published combo'}.`} confirmLabel={submitLabel} busy={publishing} onConfirm={confirmSubmit} onCancel={() => setShowPublishConfirm(false)} />
       <header className="home-header">
         <a className="home-brand" href="/home" onClick={(event) => go(event, '/home')}>
           <img className="home-brand-logo" src="/logo%20no%20bg.png" alt="" width="52" height="52" />
@@ -206,7 +228,15 @@ function Create({ navigate, user, comboId = null, notify }) {
 
             <div className="form-grid">
               <label>Character
-                <div className="character-picker">
+                <div className="character-picker" onBlur={(event) => {
+                  if (!event.currentTarget.contains(event.relatedTarget)) setCharacterOpen(false);
+                }} onKeyDown={(event) => {
+                  if (event.key === 'Escape') {
+                    event.preventDefault();
+                    event.currentTarget.querySelector('input').focus();
+                    setCharacterOpen(false);
+                  }
+                }}>
                   <span className="character-search" aria-hidden="true">⌕</span>
                   <input
                     value={characterQuery}
@@ -217,7 +247,6 @@ function Create({ navigate, user, comboId = null, notify }) {
                       setCharacterOpen(true);
                     }}
                     onFocus={() => setCharacterOpen(true)}
-                    onBlur={() => window.setTimeout(() => setCharacterOpen(false), 150)}
                     placeholder="Search for a character..."
                     aria-expanded={characterOpen}
                     aria-controls="character-options"
@@ -289,37 +318,39 @@ function Create({ navigate, user, comboId = null, notify }) {
               <span>04</span>
               <div><h2>Combo video <span className="optional">OPTIONAL</span></h2></div>
             </div>
-            <label className={`video-dropzone ${video ? 'has-video' : ''}`}>
+            <label className={`video-dropzone ${video || existingVideo ? 'has-video' : ''}`}>
               <input
+                ref={videoInput}
                 type="file"
                 accept="video/mp4,video/webm,video/quicktime"
                 onChange={(event) => selectVideo(event.target.files?.[0] ?? null)}
               />
               <span className="video-icon">{video ? '✓' : '▶'}</span>
               <span className="video-copy">
-                <strong>{video ? video.name : 'Choose a combo video'}</strong>
+                <strong>{video ? video.name : existingVideo ? existingVideo.name || 'Saved combo video' : 'Choose a combo video'}</strong>
                 <small>{video ? `${(video.size / 1024 / 1024).toFixed(1)} MB · Ready to attach` : 'MP4, WebM, or MOV · Up to 100 MB'}</small>
               </span>
-              <span className="browse-video">{video ? 'Replace' : 'Browse file'}</span>
+              <span className="browse-video">{video || existingVideo ? 'Replace' : 'Browse file'}</span>
             </label>
-            {videoPreviewUrl && (
+            {(videoPreviewUrl || existingVideo?.url) && (
               <div className="video-preview-wrap">
-                <video className="video-preview" src={videoPreviewUrl} controls preload="metadata" poster={form.character ? getCharacterImage(form.character) : undefined}>
+                <video className="video-preview" src={videoPreviewUrl || existingVideo.url} controls preload="metadata" poster={form.character ? getCharacterImage(form.character) : undefined}>
                   Your browser does not support video playback.
                 </video>
                 <small>Play the preview and check the volume control to confirm your file contains a browser-compatible audio track.</small>
               </div>
             )}
             {videoError && <p className="video-error" role="alert">{videoError}</p>}
-            {video && <button className="remove-video" type="button" onClick={() => { setVideo(null); setVideoPreviewUrl(''); }}>Remove attachment</button>}
+            {(video || existingVideo) && <button className="remove-video" type="button" onClick={removeVideo}>Remove attachment</button>}
           </section>
 
           <aside className="publish-panel">
             <div><h2>{comboId ? 'Update your combo' : 'Publish your combo'}</h2></div>
             <SelectField label="Visibility" name="visibility" value={form.visibility} options={['Public', 'Private']} onChange={updateField} />
+            {comboId && <SelectField label="Status" name="status" value={comboStatus} options={['Draft', 'Published']} onChange={({ target }) => setComboStatus(target.value)} />}
             <div className="form-actions">
               <button type="button" className="secondary-button" onClick={() => navigate(comboId ? '/my-combos' : '/home')}>Cancel</button>
-              <button type="submit" className="publish-button">{comboId ? 'Save Changes' : 'Publish Combo'} <span>→</span></button>
+              <button type="submit" className="publish-button">{submitLabel} <span>→</span></button>
             </div>
             {submitted && <p className="success-message" role="status">{comboId ? 'Combo updated.' : 'Combo ready — your form was submitted.'}</p>}
             {submitError && <p className="publish-error" role="alert">{submitError}</p>}

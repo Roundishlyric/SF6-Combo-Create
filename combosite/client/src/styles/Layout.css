@@ -41,8 +41,34 @@
 .home-page .feature-copy { width: min(600px, 65%); padding: clamp(28px, 4vw, 52px); }
 .home-page .feature-copy h2 { text-wrap: balance; }
 .home-page :is(.combo-grid, .stats-grid, .mini-stats) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.home-page .combo-card { display: flex; flex-direction: column; min-width: 0; }
-.home-page .combo-card .combo-meta { margin-top: auto; padding-top: 16px; }
+.home-page .combo-card {
+  display: grid;
+  grid-template-rows: auto auto auto 1fr auto;
+  gap: 16px;
+  min-width: 0;
+}
+.home-page .combo-card h3 { margin: 0; }
+.home-page .combo-card .combo-inputs { align-self: stretch; }
+.home-page .combo-card .combo-media { min-width: 0; }
+.home-page .combo-card .home-combo-video { margin-top: 0; }
+.home-page .combo-card .combo-meta {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) minmax(0, 1fr);
+  gap: 12px;
+  margin-top: 0;
+  padding-top: 0;
+  align-self: end;
+}
+.home-page .combo-card .combo-meta span { min-width: 0; overflow-wrap: anywhere; }
+.home-page .feature-card + .combo-section { margin-top: 32px; }
+
+/* Share content rows so optional videos and wrapped text cannot shift neighbors. */
+@supports (grid-template-rows: subgrid) {
+  .home-page .combo-card {
+    grid-row: span 5;
+    grid-template-rows: subgrid;
+  }
+}
 .home-page :is(.combo-top, .explore-card-top) { grid-template-columns: auto minmax(0, 1fr) auto; }
 .home-page :is(.combo-inputs, .explore-notation, .my-combo-info code, .profile-combo-copy code, .combo-detail-route code) {
   overflow-wrap: anywhere;

@@ -133,14 +133,16 @@ function Home({ navigate, user }) {
                   <div><strong>{combo.character}</strong><span>by {combo.creator}</span></div>
                   <button className={combo.liked ? 'liked' : ''} onClick={() => toggleLiked(combo.id)} aria-label={user ? `${combo.liked ? 'Unlike' : 'Like'} ${combo.title}` : 'Sign in to like this combo'}>{combo.liked ? '♥' : '♡'}</button>
                 </div>
+                <h3>{combo.title}</h3>
+                <div className="combo-inputs">{combo.notation}</div>
+                <div className="combo-media">
                 {combo.video?.url && (
                   <video className="home-combo-video" controls preload="metadata" playsInline poster={getCharacterImage(combo.character)}>
                     <source src={combo.video.url} type={combo.video.type} />
                     Your browser does not support video playback.
                   </video>
                 )}
-                <h3>{combo.title}</h3>
-                <div className="combo-inputs">{combo.notation}</div>
+                </div>
                 <div className="combo-meta">
                   <span><small>DAMAGE</small><strong>{combo.damage || '—'}</strong></span>
                   <span><small>DIFFICULTY</small><strong>{combo.difficulty}</strong></span>
