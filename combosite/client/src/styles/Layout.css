@@ -78,7 +78,7 @@
 }
 .home-page :is(.my-combo-info, .identity-copy, .profile-combo-copy, .combo-detail-fighter > div) { min-width: 0; }
 .home-page .filter-sidebar { top: 100px; }
-.home-page .my-combo-row { grid-template-columns: auto minmax(0, 1fr) 75px 65px 85px auto; }
+.home-page .my-combo-row { grid-template-columns: auto minmax(0, 1fr) 75px 85px auto; }
 .home-page :is(.explore-meta, .combo-meta, .creator-actions, .player-tags, .name-row) { flex-wrap: wrap; }
 .home-page .search-box input { min-width: 0; }
 .home-page .form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }

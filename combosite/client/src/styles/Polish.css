@@ -1,0 +1,87 @@
+/* Shared visual roles stay consistent when route styles load on navigation. */
+#root .home-page {
+  --home-border: rgba(224, 174, 108, .18);
+  --ui-text: #f8f0e5;
+  --ui-muted: #bba995;
+  --ui-field: #100c08;
+  color: var(--ui-text);
+  background: radial-gradient(ellipse at 85% 0, rgba(192, 92, 31, .12), transparent 45%), #0d0a07;
+}
+
+#root .home-page .home-header {
+  background: rgba(17, 12, 8, .96);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, .16);
+}
+#root .home-page .home-nav a { color: var(--ui-muted); font-size: .82rem; }
+#root .home-page .home-nav a:hover,
+#root .home-page .home-nav a.active { color: #ffae67; }
+#root .home-page .header-login { min-height: 42px; padding-inline: 18px; }
+#root .home-page .avatar { border-color: #785236; background: #5c3520; color: #ffe7c2; }
+#root .home-page .icon-button { background: #24190f; }
+
+#root .home-page :is(.welcome-row, .library-heading, .create-heading) h1 { font-size: clamp(1.65rem, 2.7vw, 2.2rem); }
+#root .home-page .welcome-row p,
+#root .home-page .section-heading p { margin-top: 8px; color: var(--ui-muted); font-size: .82rem; line-height: 1.6; }
+#root .home-page .section-heading h2 { font-size: 1.45rem; }
+#root .home-page .section-heading button { min-height: 44px; color: #e5c9a5; }
+#root .home-page .feature-card { min-height: 340px; }
+#root .home-page .feature-copy { padding: clamp(28px, 4vw, 48px); }
+#root .home-page .feature-copy h2 { margin-top: 0; font-size: clamp(2rem, 4vw, 3.1rem); line-height: 1.1; }
+#root .home-page .feature-copy p { color: #e0d1c0; }
+#root .home-page .feature-shade { background: linear-gradient(90deg, rgba(13,9,6,.97), rgba(13,9,6,.82) 38%, rgba(13,9,6,.16) 85%); }
+#root .home-page .feature-card + .combo-section { margin-top: 40px; }
+
+#root .home-page .combo-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+#root .home-page :is(.combo-card, .explore-card) { padding: 24px; border-color: var(--home-border); background: linear-gradient(145deg, #21170f, #171009); }
+#root .home-page :is(.combo-card, .explore-card):hover { transform: translateY(-2px); border-color: rgba(255, 174, 103, .42); }
+#root .home-page .combo-top strong { font-size: .9rem; }
+#root .home-page .combo-top span,
+#root .home-page .creator-link { color: var(--ui-muted); font-size: .72rem; }
+#root .home-page .combo-identities .creator-avatar { border-color: #21170f; background: #704325; }
+#root .home-page .fighter-avatar { background: #372519; }
+#root .home-page .combo-title-link { color: var(--ui-text); text-decoration: none; font-weight: 700; }
+#root .home-page .combo-title-link:hover { color: #ffae67; }
+#root .home-page :is(.combo-inputs, .explore-notation) { background: var(--ui-field); color: #f1dfc6; padding: 14px; font-size: .8rem; line-height: 1.7; border: 1px solid rgba(224,174,108,.09); }
+#root .home-page .combo-meta { border-top: 1px solid var(--home-border); padding-top: 16px; }
+#root .home-page :is(.combo-meta, .explore-meta) small { color: var(--ui-muted); font-size: .61rem; letter-spacing: .07em; }
+#root .home-page :is(.combo-meta, .explore-meta) strong { color: var(--ui-text); font-size: .82rem; margin-top: 7px; }
+#root .home-page :is(.home-combo-video, .explore-video, .combo-detail-video) { background: #090705; border-color: var(--home-border); }
+#root .home-page .home-combo-video { aspect-ratio: 16 / 9; object-fit: contain; }
+#root .home-page .combo-top > button,
+#root .home-page .explore-card-top > button { display: grid; place-items: center; width: 40px; height: 40px; color: var(--ui-muted); }
+#root .home-page .combo-top > button.liked,
+#root .home-page .explore-card-top > button.saved { color: #f2c14e; }
+
+#root .home-page .filter-panel { gap: 20px; }
+#root .home-page .filter-panel > label:not(.search-box) { color: var(--ui-muted); font-size: .68rem; }
+#root .home-page :is(.search-box, .fighter-select-trigger, .filter-select-trigger, .styled-select-trigger) { min-height: 46px; background: var(--ui-field); border-color: rgba(224,174,108,.2); color: var(--ui-text); }
+#root .home-page :is(.filter-select-menu, .fighter-select-menu, .styled-select-menu, .menu-popover, .notification-panel) { background: #21170f; border-color: var(--home-border); }
+#root .home-page .search-box input { font-size: .8rem; color: var(--ui-text); }
+#root .home-page :is(input, textarea)::placeholder { color: #ab9580; }
+#root .home-page .search-box > span { color: var(--ui-muted); }
+#root .home-page .filter-toggle { color: #ddc8b0; font-size: .8rem; min-height: 44px; }
+#root .home-page .results-row { color: var(--ui-muted); }
+#root .home-page .combo-form label { color: #ddc8b0; font-size: .76rem; }
+#root .home-page .combo-form :is(input, textarea) { font-size: .85rem; color: var(--ui-text); }
+#root .home-page .styled-select-trigger { font-size: .82rem; }
+#root .home-page :is(.draft-status, .home-footer, .library-footer) { color: var(--ui-muted); }
+#root .home-page .stat-icon.blue { color: #ffc987; background: rgba(255,201,135,.1); }
+#root .home-page .stat-icon.purple { color: #ffae67; background: rgba(255,174,103,.1); }
+
+#root .home-page :is(a, button, input, textarea, select):focus-visible { outline: 2px solid #ffb570; outline-offset: 3px; }
+
+@media (max-width: 860px) {
+  #root .home-page .combo-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #root .home-page .feature-copy { width: 80%; }
+}
+@media (max-width: 600px) {
+  #root .home-page .combo-grid { grid-template-columns: 1fr; }
+  #root .home-page .feature-copy { width: 100%; padding: 28px 24px; }
+  #root .home-page .feature-card { min-height: 320px; }
+  #root .home-page :is(.combo-card, .explore-card) { padding: 20px; }
+  #root .home-page .feature-shade { background: rgba(13,9,6,.8); }
+}
+@media (prefers-reduced-motion: reduce) {
+  #root .home-page *, #root .home-page *::before, #root .home-page *::after { animation: none !important; transition: none !important; }
+  #root .home-page :is(.combo-card, .explore-card, .create-button, .publish-button, .follow-button):hover { transform: none; }
+}

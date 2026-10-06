@@ -90,6 +90,7 @@ function Home({ navigate, user }) {
         <section className="welcome-row">
           <div>
             <h1>{user ? `Welcome back, ${user.name.split(' ')[0]}.` : 'Welcome to HadouKraft.'}</h1>
+            <p>Find your next route. Build it, practice it, share it.</p>
           </div>
           <button className="create-button" onClick={() => navigate(user ? '/create' : '/login')}><span>＋</span> {user ? 'Create Combo' : 'Sign in to create'}</button>
         </section>
@@ -112,7 +113,7 @@ function Home({ navigate, user }) {
 
         <section className="combo-section">
           <div className="section-heading">
-            <div><h2>Trending Combos</h2></div>
+            <div><h2>Trending Combos</h2><p>Popular routes from the community.</p></div>
             <button onClick={() => navigate('/combos')}>View all <span>→</span></button>
           </div>
 
@@ -133,11 +134,11 @@ function Home({ navigate, user }) {
                   <div><strong>{combo.character}</strong><span>by {combo.creator}</span></div>
                   <button className={combo.liked ? 'liked' : ''} onClick={() => toggleLiked(combo.id)} aria-label={user ? `${combo.liked ? 'Unlike' : 'Like'} ${combo.title}` : 'Sign in to like this combo'}>{combo.liked ? '♥' : '♡'}</button>
                 </div>
-                <h3>{combo.title}</h3>
+                <h3><a className="combo-title-link" href={`/combos/${encodeURIComponent(combo.id)}`} onClick={(event) => go(event, `/combos/${encodeURIComponent(combo.id)}`)}>{combo.title}</a></h3>
                 <div className="combo-inputs">{combo.notation}</div>
                 <div className="combo-media">
                 {combo.video?.url && (
-                  <video className="home-combo-video" controls preload="metadata" playsInline poster={getCharacterImage(combo.character)}>
+                  <video className="home-combo-video" controls preload="metadata" playsInline>
                     <source src={combo.video.url} type={combo.video.type} />
                     Your browser does not support video playback.
                   </video>
