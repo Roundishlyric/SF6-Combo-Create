@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import '../styles/Home.css';
 import '../styles/Library.css';
+import '../styles/ExploreCards.css';
 import { getExploreCombos, toggleComboLike, toggleFollow } from '../lib/api.js';
 import { getCharacterImage } from '../lib/characterImages.js';
 import SkeletonLoader from '../components/SkeletonLoader.jsx';
 import Notifications from '../components/Notifications.jsx';
+import ComboVideo from '../components/ComboVideo.jsx';
 
 const fighterColor = (fighter) => {
   if (['Ken', 'Marisa', 'Dhalsim'].includes(fighter)) return 'orange';
@@ -206,7 +208,7 @@ function Combos({ navigate, user }) {
   };
 
   return (
-    <div className="home-page library-page">
+    <div className="home-page library-page explore-page">
       <Header navigate={navigate} active="explore" user={user} />
       <main className="library-main">
         <section className="explore-hero" aria-label="Explore featured combos">
@@ -253,28 +255,35 @@ function Combos({ navigate, user }) {
                       <div className={`fighter-avatar ${fighterColor(combo.character)}`}>
                         <img src={getCharacterImage(combo.character)} alt={`${combo.character} character`} loading="lazy" decoding="async" width="160" height="160" />
                       </div>
-                      <button className="creator-avatar" type="button" onClick={() => navigate(`/profile/${combo.userId}`)} aria-label={`View ${combo.creator}'s profile`}>
-                        {combo.avatarUrl ? <img src={combo.avatarUrl} alt="" loading="lazy" /> : <span>{combo.creator?.charAt(0).toUpperCase()}</span>}
-                      </button>
                     </div>
-                    <div><strong>{combo.character}</strong><div className="creator-actions"><button className="creator-link" type="button" onClick={() => navigate(`/profile/${combo.userId}`)}>by {combo.creator}</button>{user?.id !== combo.userId && <button className={`card-follow-button ${combo.followed ? 'following' : ''}`} type="button" onClick={() => toggleCreatorFollow(combo.userId)}>{combo.followed ? 'Following' : 'Follow'}</button>}</div></div>
+                    <div className="explore-creator-details">
+                      <strong>{combo.character}</strong>
+                      <div className="creator-actions">
+                        <button className="creator-avatar" type="button" onClick={() => navigate(`/profile/${combo.userId}`)} aria-label={`View ${combo.creator}'s profile`}>
+                          {combo.avatarUrl ? <img src={combo.avatarUrl} alt="" loading="lazy" /> : <span>{combo.creator?.charAt(0).toUpperCase()}</span>}
+                        </button>
+                        <button className="creator-link" type="button" onClick={() => navigate(`/profile/${combo.userId}`)}>by {combo.creator}</button>
+                        {user?.id !== combo.userId && <button className={`card-follow-button ${combo.followed ? 'following' : ''}`} type="button" onClick={() => toggleCreatorFollow(combo.userId)}>{combo.followed ? 'Following' : 'Follow'}</button>}
+                      </div>
+                    </div>
                     <button className={combo.liked ? 'saved' : ''} onClick={() => toggleLiked(combo.id)} type="button" aria-label={user ? `${combo.liked ? 'Unlike' : 'Like'} ${combo.title}` : 'Sign in to like this combo'}>{combo.liked ? '♥' : '♡'}</button>
                   </div>
                   <div className="difficulty-line"><span>{combo.game}</span><i className={combo.difficulty.toLowerCase()}>{combo.difficulty}</i></div>
-                  <h2>{combo.title}</h2>
-                  <div className="explore-notation">{combo.notation}</div>
+                  <h2><button className="explore-title-link" type="button" onClick={() => navigate(`/combos/${encodeURIComponent(combo.id)}`)}>{combo.title}</button></h2>
                   {combo.video?.url && (
-                    <video className="explore-video" controls preload="none" playsInline poster={getCharacterImage(combo.character)}>
-                      <source src={combo.video.url} type={combo.video.type} />
-                      Your browser does not support video playback.
-                    </video>
+                    <ComboVideo className="explore-video" video={combo.video} title={combo.title} />
                   )}
+                  <div className="explore-route-label">COMBO ROUTE</div>
+                  <div className="explore-notation">{combo.notation}</div>
                   <div className="explore-meta">
                     <span><small>DAMAGE</small><strong>{combo.damage || '—'}</strong></span>
                     <span><small>LIKES</small><strong>♥ {combo.likes}</strong></span>
+                    <div className="explore-card-actions">
+                    <button className="explore-comments-button" type="button" onClick={() => navigate(`/combos/${encodeURIComponent(combo.id)}`)} aria-label={`View comments on ${combo.title}`}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="M20 11.5a8 8 0 0 1-8 8H5l-4 3V11.5a9.5 9.5 0 0 1 19 0Z" /></svg>Comments</button>
                     <button type="button" onClick={() => shareCombo(combo)} aria-label={`Share ${combo.title}`}>
                       {shareStatus.id === combo.id ? shareStatus.message : 'Share'} <b aria-hidden="true">↗</b>
                     </button>
+                    </div>
                   </div>
                 </article>
               ))}

@@ -8,19 +8,30 @@ const viteEntry = join(projectDirectory, 'client', 'node_modules', 'vite', 'bin'
 
 const api = spawn(process.execPath, ['--env-file-if-exists=.env', '--watch', apiEntry], {
   cwd: projectDirectory,
-  stdio: 'inherit',
+  stdio: ['inherit', 'pipe', 'inherit'],
 });
-const client = spawn(process.execPath, [viteEntry, '--host', '0.0.0.0', '--port', '5173'], {
-  cwd: join(projectDirectory, 'client'),
-  stdio: 'inherit',
+let client;
+let apiOutput = '';
+// The watch process forwards server output, including readiness after a restart.
+api.stdout.on('data', (chunk) => {
+  process.stdout.write(chunk);
+  if (client) return;
+  apiOutput = (apiOutput + chunk.toString()).slice(-4096);
+  const ready = apiOutput.match(/Hadoukraft API running on http:\/\/localhost:(\d+)/);
+  if (!ready) return;
+  client = spawn(process.execPath, [viteEntry, '--host', '0.0.0.0', '--port', '5173'], {
+    cwd: join(projectDirectory, 'client'),
+    env: { ...process.env, API_PROXY_TARGET: `http://localhost:${ready[1]}` },
+    stdio: 'inherit',
+  });
+  client.on('exit', (code) => { if (code) process.exitCode = code; });
 });
 
 const stop = () => {
   api.kill();
-  client.kill();
+  client?.kill();
 };
 
 process.on('SIGINT', stop);
 process.on('SIGTERM', stop);
 api.on('exit', (code) => { if (code) process.exitCode = code; });
-client.on('exit', (code) => { if (code) process.exitCode = code; });

@@ -94,6 +94,9 @@ export const toggleFollow = async (userId) => request(`/api/users/${encodeURICom
 
 export const getExploreCombos = async () => (await request('/api/explore')).combos;
 export const getCombo = async (comboId) => (await request(`/api/combos/${encodeURIComponent(comboId)}`)).combo;
+export const getComboComments = async (comboId) => (await request(`/api/combos/${encodeURIComponent(comboId)}/comments`)).comments;
+export const postComboComment = async (comboId, body) =>
+  (await request(`/api/combos/${encodeURIComponent(comboId)}/comments`, { method: 'POST', body: JSON.stringify({ body }) })).comment;
 export const getNotifications = async () => request('/api/notifications');
 export const markNotificationsRead = async () => request('/api/notifications/read', { method: 'POST' });
 export const markNotificationRead = async (notificationId) => request(`/api/notifications/${encodeURIComponent(notificationId)}/read`, { method: 'POST' });

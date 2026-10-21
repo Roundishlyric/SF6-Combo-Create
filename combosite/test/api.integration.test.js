@@ -74,6 +74,31 @@ integrationTest('upload routes require authentication', async () => {
   assert.notEqual(result.response.status, 200);
 });
 
+integrationTest('comments persist on public posts and reject anonymous, invalid, and private writes', async () => {
+  const login = await api('/api/auth/login', { body: { email: 'ken@example.test', password: 'Hadouken123' } });
+  const cookie = login.response.headers.get('set-cookie');
+  const combo = { character: 'Ken', title: 'Comment test', difficulty: 'Easy', notation: '5HP 236HP', damage: '2100', status: 'Published', visibility: 'Public' };
+  const created = await api('/api/combos', { cookie, body: combo });
+  const path = `/api/combos/${created.body.combo.id}/comments`;
+  assert.deepEqual((await api(path)).body.comments, []);
+  assert.equal((await api(path, { body: { body: 'Anonymous' } })).response.status, 401);
+  for (const body of ['   ', 'x'.repeat(1001), { text: 'Invalid' }]) {
+    assert.equal((await api(path, { cookie, body: { body } })).response.status, 400);
+  }
+  const posted = await api(path, { cookie, body: { body: '  Useful route!\nThanks.  ', userId: 'forged' } });
+  assert.equal(posted.response.status, 201);
+  assert.equal(posted.body.comment.author, 'Ken Player');
+  assert.equal(posted.body.comment.body, 'Useful route!\nThanks.');
+  assert.deepEqual((await api(path)).body.comments, [posted.body.comment]);
+  await api(`/api/combos/${created.body.combo.id}`, { cookie, method: 'PUT', body: { ...combo, visibility: 'Private' } });
+  assert.equal((await api(path)).response.status, 404);
+  assert.equal((await api(path, { cookie, body: { body: 'Hidden' } })).response.status, 404);
+  await api(`/api/combos/${created.body.combo.id}`, { cookie, method: 'PUT', body: { ...combo, status: 'Draft' } });
+  assert.equal((await api(path)).response.status, 404);
+  await api(`/api/combos/${created.body.combo.id}`, { cookie, method: 'DELETE' });
+  assert.equal((await api(path)).response.status, 404);
+});
+
 integrationTest('login rate limiting returns 429', async () => {
   let status;
   for (let attempt = 0; attempt < 7; attempt += 1) {

@@ -1,0 +1,30 @@
+#root .my-combos-page .my-heading {
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 24px;
+}
+#root .my-combos-page .my-heading h1 { margin: 0; }
+#root .my-combos-page .mini-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin: 0 0 24px;
+}
+#root .my-combos-page .mini-stats article {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  align-items: center;
+  gap: 16px;
+  min-height: 96px;
+  box-sizing: border-box;
+  padding: 20px 24px;
+}
+#root .my-combos-page .mini-stats .stat-icon { width: 44px; height: 44px; }
+#root .my-combos-page .mini-stats article > div { min-width: 0; gap: 6px; }
+#root .my-combos-page .mini-stats small { font-size: .6rem; line-height: 1.4; }
+#root .my-combos-page .mini-stats strong { margin: 0; font-size: 1.4rem; line-height: 1.2; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+@media (max-width: 560px) {
+  #root .my-combos-page .my-heading { align-items: stretch; }
+  #root .my-combos-page .mini-stats { grid-template-columns: 1fr; gap: 12px; }
+  #root .my-combos-page .mini-stats article { padding: 18px 20px; }
+}

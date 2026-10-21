@@ -233,17 +233,36 @@ const handler = async (request, response) => {
             tokenPayload: JSON.stringify({ userId: auth.user.id, ...payload }),
           };
         },
-        onUploadCompleted: async () => {},
       });
       return send(response, 200, uploadResponse);
     }
 
     // Access gate: explore and published combo details are public; other routes require a session.
     const comboMatch = path.match(/^\/api\/combos\/([^/]+)$/);
+    const commentsMatch = path.match(/^\/api\/combos\/([^/]+)\/comments$/);
     const auth = await authenticate(request);
     const isPublicExplore = request.method === 'GET' && path === '/api/explore';
     const isPublicComboDetail = request.method === 'GET' && Boolean(comboMatch);
-    if (!auth && !isPublicExplore && !isPublicComboDetail) return send(response, 401, { error: 'Authentication required.' });
+    const isPublicComments = request.method === 'GET' && Boolean(commentsMatch);
+    if (!auth && !isPublicExplore && !isPublicComboDetail && !isPublicComments) return send(response, 401, { error: 'Authentication required.' });
+
+    if (commentsMatch && ['GET', 'POST'].includes(request.method)) {
+      const comboId = decodeURIComponent(commentsMatch[1]);
+      const { rows: [combo] } = await query(`SELECT id FROM combos WHERE id=$1 AND deleted_at IS NULL
+        AND data->>'status'='Published' AND data->>'visibility'='Public'`, [comboId]);
+      if (!combo) return send(response, 404, { error: 'Published combo not found.' });
+      if (request.method === 'GET') {
+        const { rows: comments } = await query(`SELECT c.id,c.body,c.user_id AS "userId",u.name AS author,c.created_at AS "createdAt"
+          FROM comments c JOIN users u ON u.id=c.user_id WHERE c.combo_id=$1 ORDER BY c.created_at DESC,c.id DESC LIMIT 100`, [comboId]);
+        return send(response, 200, { comments });
+      }
+      const body = await readBody(request);
+      const text = typeof body.body === 'string' ? body.body.trim() : '';
+      if (!text || text.length > 1000) return send(response, 400, { error: 'Comment must be between 1 and 1000 characters.' });
+      const { rows: [comment] } = await query(`INSERT INTO comments (id,combo_id,user_id,body) VALUES ($1,$2,$3,$4)
+        RETURNING id,body,user_id AS "userId",created_at AS "createdAt"`, [randomUUID(), comboId, auth.user.id, text]);
+      return send(response, 201, { comment: { ...comment, author: auth.user.name } });
+    }
 
     // Session and notification routes.
     if (request.method === 'GET' && path === '/api/auth/me') return send(response, 200, { user: publicUser(auth.user) });

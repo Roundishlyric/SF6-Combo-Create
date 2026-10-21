@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Header } from './Combos.jsx';
 import '../styles/Home.css';
 import '../styles/Library.css';
+import '../styles/MyCombos.css';
 import { deleteCombo, getCombos } from '../lib/api.js';
 import { getCharacterImage } from '../lib/characterImages.js';
 import SkeletonLoader from '../components/SkeletonLoader.jsx';
@@ -86,7 +87,7 @@ function MyCombos({ navigate, user, notify }) {
   const totalSaves = personalCombos.reduce((sum, combo) => sum + Number(combo.saves || 0), 0);
 
   return (
-    <div className="home-page library-page">
+    <div className="home-page library-page my-combos-page">
       <ConfirmDialog open={Boolean(pendingDelete)} title="Delete this combo?" message={pendingDelete ? `“${pendingDelete.title}” will be removed from your library and Explore. This action cannot be undone.` : ''} confirmLabel="Delete Combo" busy={deleting} danger onConfirm={() => remove(pendingDelete)} onCancel={() => setPendingDelete(null)} />
       <Header navigate={navigate} active="mine" user={user} />
       <main className="library-main">
