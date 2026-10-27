@@ -293,10 +293,45 @@ function Create({ navigate, user, comboId = null, notify }) {
               <span>02</span>
               <div><h2>Input notation</h2></div>
             </div>
+            <div className="notation-editor">
             <label>Combo sequence
               <textarea name="notation" value={form.notation} onChange={updateField} placeholder="2MP  ·  5HP  ·  DR  ·  5HP  ·  623HP" minLength="2" maxLength="500" required />
             </label>
-            <div className="notation-help"><strong>Quick notation</strong><span>2 = Down</span><span>5 = Neutral</span><span>6 = Forward</span><span>DR = Drive Rush</span></div>
+            <aside className="notation-help" aria-label="Quick notation guide">
+              <strong className="notation-title">Quick notation</strong>
+              <div className="notation-direction-group">
+                <p className="notation-group-label">Directions <small>Facing right</small></p>
+              <div className="notation-numpad" role="img" aria-label="Numpad directions when facing right: 7 up-back, 8 up, 9 up-forward, 4 back, 5 neutral, 6 forward, 1 down-back, 2 down, 3 down-forward.">
+                {[
+                  [7, '↖'], [8, '↑'], [9, '↗'],
+                  [4, '←'], [5, '•'], [6, '→'],
+                  [1, '↙'], [2, '↓'], [3, '↘'],
+                ].map(([number, direction]) => (
+                  <div className={`notation-key${number === 5 ? ' notation-key-neutral' : ''}`} key={number} aria-hidden="true">
+                    <b>{number}</b><span>{direction}</span>
+                  </div>
+                ))}
+              </div>
+                <p className="notation-group-caption">5 = Neutral</p>
+              </div>
+              <div className="notation-attack-group">
+                <p className="notation-group-label">Attack buttons</p>
+                <div className="notation-attacks" role="group" aria-label="Attack buttons: punches on the top row, kicks on the bottom row">
+                  {[
+                    ['LP', 'Light punch', 'light'], ['MP', 'Medium punch', 'medium'], ['HP', 'Heavy punch', 'heavy'],
+                    ['LK', 'Light kick', 'light'], ['MK', 'Medium kick', 'medium'], ['HK', 'Heavy kick', 'heavy'],
+                  ].map(([input, name, strength]) => (
+                    <span className={`notation-attack notation-attack-${strength}`} key={input} aria-label={name} title={name}>{input}</span>
+                  ))}
+                </div>
+                <p className="notation-group-caption">Top: Punch · Bottom: Kick</p>
+              </div>
+              <div className="notation-footer">
+                <div className="notation-tags"><span>2 = Down</span><span>6 = Forward</span><span>DR = Drive Rush</span></div>
+                <p className="notation-group-caption">L / M / H = Light / Medium / Heavy</p>
+              </div>
+            </aside>
+            </div>
           </section>
 
           <section className="form-panel form-setup">
